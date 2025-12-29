@@ -1218,13 +1218,13 @@
     // 第一步：批量上传文件到Shopify Files
     let uploadResults = [];
     try {
-      const API_BASE = window.QUOTES_API_BASE || 'https://shopify-13s4.vercel.app/api';
+      const API_BASE = window.QUOTES_API_BASE || 'shopify-test-brown.vercel.app/api';
       
       console.log('📤 调用多文件上传API...');
       console.log('API_BASE:', API_BASE);
       console.log('文件数量:', filesToUpload.length);
       
-      const storeFileResponse = await fetch(`${API_BASE}/api/store-file-real`, {
+      const storeFileResponse = await fetch(`${API_BASE}/store-file-real`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -1258,7 +1258,7 @@
     
     // 第二步：创建草稿订单
     try {
-      const API_BASE = 'https://shopify-13s4.vercel.app/api';
+      const API_BASE = 'shopify-test-brown.vercel.app/api';
       
       // 准备询价提交数据
       const requestBody = {
@@ -1283,7 +1283,7 @@
         fileCount: requestBody.files.length
       });
       
-      const response = await fetch(`${API_BASE}/api/submit-quote-real`, {
+      const response = await fetch(`${API_BASE}/submit-quote-real`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -1602,7 +1602,7 @@
 
     // 追加：同步到 Vercel 后端（Metaobject: quote）
     try {
-      const base = (window.QUOTES_API_BASE || 'https://shopify-13s4.vercel.app/api').replace(/\/$/, '');
+      const base = (window.QUOTES_API_BASE || 'shopify-test-brown.vercel.app/api').replace(/\/$/, '');
       
       // 确保 API 基础地址正确
       if (!window.QUOTES_API_BASE) {
