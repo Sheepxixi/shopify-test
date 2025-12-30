@@ -6,10 +6,9 @@ export function setCorsHeaders(req, res) {
   // 允许的来源（Shopify 店铺 + 本地调试）
   const allowedOrigins = new Set([
     'https://sain-pdc-test.myshopify.com',
-    'https://shopify-test-brown.vercel.app',
     'http://localhost:3000',
     'http://127.0.0.1:3000',
-    'null',
+    'https://shopify-test-brown.vercel.app'
   ]);
 
   // 优先使用 Origin，其次从 Referer 提取
