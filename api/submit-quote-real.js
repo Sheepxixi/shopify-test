@@ -32,14 +32,25 @@ const API_BASE_URL = process.env.API_BASE_URL || 'https://shopify-test-brown.ver
  */
 
 export default async function handler(req, res) {
-  console.log('submit-quote-real: 收到请求', req.method, req.url);
+  console.log('========================================');
+  console.log('收到请求:', {
+    method: req.method,
+    url: req.url,
+    origin: req.headers.origin,
+    referer: req.headers.referer,
+    host: req.headers.host,
+    'user-agent': req.headers['user-agent'],
+    'content-type': req.headers['content-type'],
+    'content-length': req.headers['content-length'],
+    'x-vercel-id': req.headers['x-vercel-id'] // Vercel特定的ID
+  });
+  
   // 设置CORS头
   setCorsHeaders(req, res);
 
-  // 处理CORS - 如果setCorsHeaders返回true，表示已处理OPTIONS请求
-  if (setCorsHeaders(req, res)) {
-    console.log('已处理OPTIONS请求，直接返回200');
-    return res.status(200).end();
+  if (req.method === 'OPTIONS') {
+    res.status(200).end();
+    return;
   }
 
   // 支持GET请求用于测试

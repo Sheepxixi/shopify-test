@@ -28,6 +28,19 @@ import { setCorsHeaders } from './cors-config.js';
  */
 
 export default async function handler(req, res) {
+  console.log('========================================');
+  console.log('收到请求:', {
+    method: req.method,
+    url: req.url,
+    origin: req.headers.origin,
+    referer: req.headers.referer,
+    host: req.headers.host,
+    'user-agent': req.headers['user-agent'],
+    'content-type': req.headers['content-type'],
+    'content-length': req.headers['content-length'],
+    'x-vercel-id': req.headers['x-vercel-id'] // Vercel特定的ID
+  });
+  
   setCorsHeaders(req, res);
 
   if (req.method === 'OPTIONS') {
