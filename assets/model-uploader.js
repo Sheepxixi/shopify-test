@@ -1269,6 +1269,82 @@ async function uploadFilesIndividually(files) {
   return uploadResults;
 }
 
+// 在浏览器控制台运行这个函数
+async function testFileUploadDirect() {
+  console.log('=== 开始测试文件上传 ===');
+  
+  // 获取一个文件
+  const fileId = Array.from(selectedFileIds)[0];
+  const fileData = fileManager.files.get(fileId);
+  console.log('文件数据:', fileData);
+  
+  if (!fileData || !fileData.file) {
+    console.error('找不到文件数据');
+    return;
+  }
+  
+  const file = fileData.file;
+  console.log('文件对象:', {
+    名称: file.name,
+    大小: file.size,
+    类型: file.type,
+    是File实例: file instanceof File,
+    是Blob实例: file instanceof Blob
+  });
+  
+  // 读取为Base64
+  const fileBase64 = await new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+  
+  console.log('Base64数据前200字符:', fileBase64.substring(0, 200));
+  console.log('Base64数据长度:', fileBase64.length);
+  
+  // 准备测试数据
+  const testPayload = {
+    files: [{
+      fileData: fileBase64,
+      fileName: file.name,
+      fileType: file.type || 'application/octet-stream'
+    }]
+  };
+  
+  console.log('测试请求体:', JSON.stringify(testPayload, null, 2).substring(0, 1000));
+  
+  // 发送请求
+  try {
+    const response = await fetch('https://shopify-13s4.vercel.app/api/store-file-real', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
+      body: JSON.stringify(testPayload)
+    });
+    
+    console.log('响应状态:', response.status);
+    console.log('响应头:', Object.fromEntries(response.headers.entries()));
+    
+    const responseText = await response.text();
+    console.log('响应文本:', responseText);
+    
+    try {
+      const jsonResponse = JSON.parse(responseText);
+      console.log('JSON响应:', jsonResponse);
+    } catch (e) {
+      console.log('响应不是JSON格式');
+    }
+  } catch (error) {
+    console.error('请求失败:', error);
+  }
+}
+
+// 运行测试
+testFileUploadDirect();
+
   // 提交到草稿订单（多文件版本）
 async function submitToDraftOrderMultiFile() {
   console.log('📝 开始创建草稿订单（多文件）...');
