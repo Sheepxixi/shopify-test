@@ -6,8 +6,6 @@
 class FileStorageManager {
   constructor() {
     this.storageKey = 'uploaded_files';
-    // 使用内存缓存，避免将大体积 Base64 写入 localStorage 触发配额
-    this.cache = {};
     this.maxFileSize = 50 * 1024 * 1024; // 50MB
     this.allowedTypes = [
       'application/step',
@@ -107,8 +105,13 @@ class FileStorageManager {
    * @param {Object} fileInfo - 文件信息
    */
   saveFileInfo(fileId, fileInfo) {
-    // 仅存储到内存，避免 localStorage 配额问题
-    this.cache[fileId] = fileInfo;
+    try {
+      const files = this.getStoredFiles();
+      files[fileId] = fileInfo;
+      localStorage.setItem(this.storageKey, JSON.stringify(files));
+    } catch (error) {
+      console.error('保存文件信息失败:', error);
+    }
   }
 
   /**
@@ -116,7 +119,13 @@ class FileStorageManager {
    * @returns {Object} 文件信息对象
    */
   getStoredFiles() {
-    return this.cache;
+    try {
+      const stored = localStorage.getItem(this.storageKey);
+      return stored ? JSON.parse(stored) : {};
+    } catch (error) {
+      console.error('获取存储文件失败:', error);
+      return {};
+    }
   }
 
   /**
@@ -154,27 +163,38 @@ class FileStorageManager {
    * @param {string} fileId - 文件ID
    */
   deleteFile(fileId) {
-    const files = this.getStoredFiles();
-    delete files[fileId];
+    try {
+      const files = this.getStoredFiles();
+      delete files[fileId];
+      localStorage.setItem(this.storageKey, JSON.stringify(files));
+    } catch (error) {
+      console.error('删除文件失败:', error);
+    }
   }
 
   /**
    * 清理过期文件（超过30天）
    */
   cleanupExpiredFiles() {
-    const files = this.getStoredFiles();
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    try {
+      const files = this.getStoredFiles();
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-    Object.keys(files).forEach(fileId => {
-      const fileInfo = files[fileId];
-      if (fileInfo && fileInfo.uploadTime) {
-        const uploadDate = new Date(fileInfo.uploadTime);
-        if (uploadDate < thirtyDaysAgo) {
-          delete files[fileId];
+      Object.keys(files).forEach(fileId => {
+        const fileInfo = files[fileId];
+        if (fileInfo.uploadTime) {
+          const uploadDate = new Date(fileInfo.uploadTime);
+          if (uploadDate < thirtyDaysAgo) {
+            delete files[fileId];
+          }
         }
-      }
-    });
+      });
+
+      localStorage.setItem(this.storageKey, JSON.stringify(files));
+    } catch (error) {
+      console.error('清理过期文件失败:', error);
+    }
   }
 }
 

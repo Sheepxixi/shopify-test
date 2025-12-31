@@ -647,7 +647,7 @@
 
 <script>
 // API配置
-const API_BASE = 'https://shopify-v587.vercel.app/api';
+const API_BASE = 'shopify-13s4.vercel.app/api';
 const customerEmail = (document.querySelector('.customer-authenticated')?.dataset.customerEmail || '').toLowerCase();
 const ADMIN_EMAILS = ['jonathan.wang@sainstore.com'];
 const isAdmin = ADMIN_EMAILS.some(e => e.toLowerCase() === customerEmail);
@@ -1105,14 +1105,6 @@ async function placeOrder() {
   if (totalPrice <= 0) {
     alert('订单尚未报价，请等待客服报价后再下单');
     return;
-  }
-
-  // 如果已有支付链接（可能已生成/已支付），直接跳转，避免重复完成草稿订单
-  if (order.invoiceUrl) {
-    if (confirm('检测到该订单已有支付链接，是否直接前往结账？')) {
-      window.location.href = order.invoiceUrl;
-      return;
-    }
   }
   
   // 确认下单
