@@ -1208,6 +1208,67 @@ async function handleAddToCart() {
   }
 }
 
+// 添加单个文件上传函数
+async function uploadFilesIndividually(files) {
+  console.log('开始逐个文件上传，文件数量:', files.length);
+  
+  const uploadResults = [];
+  const API_BASE = window.QUOTES_API_BASE || 'https://shopify-13s4.vercel.app/api';
+  
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i];
+    console.log(`上传文件 ${i + 1}/${files.length}: ${file.fileName}`);
+    
+    try {
+      const response = await fetch(`${API_BASE}/store-file-real`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          singleFile: file  // 使用singleFile格式
+        })
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success && result.files && result.files[0]) {
+          uploadResults.push({
+            success: true,
+            fileName: file.fileName,
+            fileUrl: result.files[0].fileUrl || '',
+            shopifyFileId: result.files[0].shopifyFileId
+          });
+          console.log(`✅ 文件 ${file.fileName} 上传成功`);
+        } else {
+          console.warn(`⚠️ 文件 ${file.fileName} 上传API返回异常`);
+          uploadResults.push({
+            success: false,
+            fileName: file.fileName,
+            error: result.message || '上传异常'
+          });
+        }
+      } else {
+        console.error(`❌ 文件 ${file.fileName} 上传失败，状态码:`, response.status);
+        uploadResults.push({
+          success: false,
+          fileName: file.fileName,
+          error: `HTTP ${response.status}`
+        });
+      }
+    } catch (error) {
+      console.error(`❌ 文件 ${file.fileName} 上传异常:`, error);
+      uploadResults.push({
+        success: false,
+        fileName: file.fileName,
+        error: error.message
+      });
+    }
+  }
+  
+  return uploadResults;
+}
+
   // 提交到草稿订单（多文件版本）
 async function submitToDraftOrderMultiFile() {
   console.log('📝 开始创建草稿订单（多文件）...');
@@ -1232,6 +1293,8 @@ async function submitToDraftOrderMultiFile() {
       });
     }
   }
+
+
   
   console.log('选中的文件详情:', selectedFiles);
   
@@ -1261,6 +1324,24 @@ async function submitToDraftOrderMultiFile() {
     }
     
     console.log(`📤 处理文件: ${fileData.file.name}`);
+
+    // 验证每个文件都有正确的参数
+    const validFiles = filesToUpload.filter(file => file.fileData && file.fileName);
+    if (validFiles.length !== filesToUpload.length) {
+      console.error('❌ 有些文件缺少必要参数:');
+      filesToUpload.forEach((file, index) => {
+        if (!file.fileData || !file.fileName) {
+          console.error(`文件 ${index + 1} 缺少:`, {
+            fileName: file.fileName,
+            hasFileData: !!file.fileData
+          });
+        }
+      });
+    }
+
+    // 只发送有效的文件
+    const filesToSend = validFiles.length > 0 ? validFiles : filesToUpload;
+
     
     try {
       // 读取文件为Base64
