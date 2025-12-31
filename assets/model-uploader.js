@@ -1483,13 +1483,26 @@ async function submitToDraftOrderMultiFile() {
 
   // 辅助函数：将文件转换为Base64
   async function getFileBase64(file) {
+      console.log('getFileBase64 接收到文件:', {
+      文件名: file.name,
+      文件大小: file.size,
+      文件类型: file.type,
+      文件对象类型: typeof file
+    });
+    
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
+      
       reader.onload = () => {
-        // 返回完整的Data URL，包括data:前缀
+        console.log('FileReader 加载完成，结果长度:', reader.result?.length || 0);
         resolve(reader.result);
       };
-      reader.onerror = () => reject(new Error('文件读取失败'));
+      
+      reader.onerror = (error) => {
+        console.error('FileReader 错误:', error);
+        reject(new Error('文件读取失败'));
+      };
+      
       reader.readAsDataURL(file);
     });
   }
