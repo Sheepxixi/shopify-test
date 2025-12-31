@@ -29,13 +29,6 @@ import { setCorsHeaders } from './cors-config.js';
 
 export default async function handler(req, res) {
   console.log('========================================');
-  // 最简单的CORS配置 - 直接设置
-  res.setHeader('Access-Control-Allow-Origin', 'https://sain-pdc-test.myshopify.com');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-  res.setHeader('Access-Control-Allow-Credentials', 'true');
-  res.setHeader('Access-Control-Max-Age', '86400');
-  
   console.log('收到请求:', {
     method: req.method,
     url: req.url,
