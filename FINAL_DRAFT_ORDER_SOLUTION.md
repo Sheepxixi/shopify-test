@@ -402,7 +402,7 @@ export default async function handler(req, res) {
 </div>
 
 <script>
-  const API_BASE = 'https://shopify-test-brown.vercel.app/api';
+  const API_BASE = 'https://shopify-13s4.vercel.app/api';
   
   async function loadQuote() {
     try {
