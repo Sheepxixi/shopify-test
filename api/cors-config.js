@@ -64,5 +64,15 @@ export function setCorsHeaders(req, res) {
   res.setHeader('Access-Control-Max-Age', '86400');
   res.setHeader('Access-Control-Expose-Headers', 'Content-Length, Content-Range, X-Total-Count');
 
-  // 注意：不要在这里处理 OPTIONS 请求，由路由自己处理
+  //// 注意：不要在这里处理 OPTIONS 请求，由路由自己处理
+  // 新增：处理 OPTIONS 请求的辅助函数
+export function handleOptions(req, res) {
+  if (req.method === 'OPTIONS') {
+    console.log('处理 OPTIONS 请求');
+    setCorsHeaders(req, res);
+    res.status(200).end();
+    return true; // 表示已处理 OPTIONS
+  }
+  return false; // 表示未处理（需要继续处理其他请求）
+}
 }
