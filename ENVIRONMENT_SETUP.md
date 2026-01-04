@@ -88,7 +88,7 @@ curl http://localhost:3000/api/quotes
 
 #### 2. 选择项目
 
-找到你的项目（例如：`shopify-13s4`）
+找到你的项目（例如：`shopify-v587`）
 
 #### 3. 进入设置
 

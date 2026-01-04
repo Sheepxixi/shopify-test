@@ -1391,7 +1391,7 @@ async function submitToDraftOrderMultiFile() {
   showLoading(`正在上传 ${filesToUpload.length} 个文件...`);
   let uploadedFiles;
   try {
-    const API_BASE = window.QUOTES_API_BASE || 'https://shopify-13s4.vercel.app/api';
+    const API_BASE = window.QUOTES_API_BASE || 'https://shopify-v587.vercel.app/api';
     const response = await fetch(`${API_BASE}/store-file-real`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -1442,7 +1442,7 @@ async function submitToDraftOrderMultiFile() {
   // 4. 调用 `submit-quote-real`
   try {
     const customerInfo = await getCustomerInfo();
-    const API_BASE = window.QUOTES_API_BASE || 'https://shopify-13s4.vercel.app/api';
+    const API_BASE = window.QUOTES_API_BASE || 'https://shopify-v587.vercel.app/api';
     const response = await fetch(`${API_BASE}/submit-quote-real`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
