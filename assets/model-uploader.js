@@ -1124,7 +1124,7 @@
   }
 
   // 提交到草稿订单（第一步：立即询价）
-  async function submitToDraftOrder() {
+    async function submitToDraftOrder() {
     console.log('📝 开始创建草稿订单...');
     
     // 获取客户信息
@@ -1133,32 +1133,51 @@
     
     // 准备线上项目（Line Items）
     const lineItems = [];
+    const filesToUpload = [];
     
     // 处理每个选中的文件
     for (const fileId of selectedFileIds) {
       const fileData = fileManager.files.get(fileId);
       if (!fileData) continue;
       
-      console.log('处理文件:', fileData.file.name);
+      console.log('处理主文件:', fileData.file.name);
+
+      // 1. 添加主3D文件到上传列表
+      try {
+        const fileBase64 = await getFileBase64(fileData.file);
+        filesToUpload.push({
+          fileName: fileData.file.name,
+          fileData: fileBase64,
+          isMain: true // 标记为主文件
+        });
+        console.log(`✅ 已添加主文件 ${fileData.file.name} 到上传队列`);
+      } catch (error) {
+        console.error(`❌ 获取主文件 ${fileData.file.name} 的Base64数据失败:`, error);
+        continue; // 如果主文件失败，则跳过此文件集
+      }
+
+      // 2. 查找并添加关联的2D文件
+      const associatedFiles = fileManager.fileAssociations.get(fileId) || [];
+      console.log(`查找关联文件 for ${fileId}, 找到 ${associatedFiles.length} 个`);
+      for (const associatedFileId of associatedFiles) {
+        const associatedFileData = fileManager.files.get(associatedFileId);
+        if (associatedFileData && associatedFileData.file) {
+          try {
+            const associatedFileBase64 = await getFileBase64(associatedFileData.file);
+            filesToUpload.push({
+              fileName: associatedFileData.file.name,
+              fileData: associatedFileBase64,
+              isMain: false // 标记为关联文件
+            });
+            console.log(`✅ 已添加关联文件 ${associatedFileData.file.name} 到上传队列`);
+          } catch (error) {
+            console.error(`❌ 获取关联文件 ${associatedFileData.file.name} 的Base64数据失败:`, error);
+          }
+        }
+      }
       
       // 获取文件配置
       const config = fileData.config || {};
-      
-      // 上传文件到本地存储
-      let realFileId = null;
-      try {
-        if (window.fileStorageManager) {
-          realFileId = `file_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-          await window.fileStorageManager.uploadFile(fileData.file, realFileId);
-          console.log('✅ 文件上传成功，ID:', realFileId);
-        } else {
-          console.warn('⚠️ 文件存储管理器未加载，使用虚拟文件ID');
-          realFileId = `file_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-        }
-      } catch (uploadError) {
-        console.error('❌ 文件上传失败:', uploadError);
-        realFileId = `file_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      }
       
       // 创建线上项目（使用虚拟产品）
       lineItems.push({
@@ -1181,20 +1200,16 @@
           { key: '缩放比例', value: String(config.scale || 100) },
           { key: '备注', value: config.note || '' },
           { key: 'Quote Status', value: 'Pending' },
-          { key: '文件ID', value: realFileId },
           { key: '_uuid', value: Date.now() + '-' + Math.random().toString(36).substr(2, 9) }
         ]
       });
     }
     
     console.log('准备创建草稿订单，线上项目:', lineItems);
+    console.log(`准备上传 ${filesToUpload.length} 个文件`);
     
     // 调用Vercel API创建草稿订单
-    const API_BASE = 'https://shopify-13s4.vercel.app/api';
-    
-    // 获取文件数据
-    const fileUrl = lineItems.length > 0 ? await getFirstFileDataUrl() : null;
-    console.log('文件数据长度:', fileUrl ? fileUrl.length : 0);
+    const API_BASE = 'https://shopify-v587.vercel.app/api';
     
     // 获取第一个文件的名称
     const firstFileId = Array.from(selectedFileIds)[0];
@@ -1209,17 +1224,15 @@
     const requestBody = {
       customerName: customerInfo.name,
       customerEmail: customerInfo.email,
-      fileName: firstFileName || 'model.stl',
       lineItems: lineItems,
-      fileUrl: fileUrl
+      files: filesToUpload // 发送包含所有文件数据的数组
     };
     
     console.log('📤 请求体准备完成:', {
       customerName: requestBody.customerName,
       customerEmail: requestBody.customerEmail,
-      fileName: requestBody.fileName,
       lineItemsCount: requestBody.lineItems.length,
-      hasFileData: !!requestBody.fileUrl
+      filesCount: requestBody.files.length
     });
     
     const response = await fetch(`${API_BASE}/submit-quote-real`, {
@@ -1343,7 +1356,7 @@
 
   // 提交询价到草稿订单（保留用于管理端功能）
   async function submitQuoteToDraftOrder() {
-    const API_BASE = 'https://shopify-13s4.vercel.app/api';  // 请修改为你的实际 Vercel 域名
+    const API_BASE = 'https://shopify-v587.vercel.app/api';  // 请修改为你的实际 Vercel 域名
     
     console.log('开始提交询价到草稿订单...');
     console.log('API_BASE:', API_BASE);
@@ -1780,7 +1793,7 @@
 
     // 追加：同步到 Vercel 后端（Metaobject: quote）
     try {
-      const base = (window.QUOTES_API_BASE || 'https://shopify-13s4.vercel.app/api').replace(/\/$/, '');
+      const base = (window.QUOTES_API_BASE || 'https://shopify-v587.vercel.app/api').replace(/\/$/, '');
       
       // 确保 API 基础地址正确
       if (!window.QUOTES_API_BASE) {
