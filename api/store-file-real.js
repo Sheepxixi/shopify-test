@@ -29,6 +29,11 @@ import { setCorsHeaders } from './cors-config.js';
  */
 
 export default async function handler(req, res) {
+  // vercel.json 将处理CORS，此处不再需要手动设置
+  if (req.method === 'OPTIONS') {
+    return res.status(204).end();
+  }
+  
   console.log('========================================');
   console.log('请求方法:', req.method);
   console.log('请求头:', {
@@ -39,13 +44,6 @@ export default async function handler(req, res) {
 
   const rawBody = JSON.stringify(req.body || {}).substring(0, 500);
   console.log('原始请求体（前500字符）:', rawBody);
-
-  setCorsHeaders(req, res);
-
-  if (req.method === 'OPTIONS') {
-    res.status(200).end();
-    return;
-  }
 
   if (req.method === 'POST') {
     try {
