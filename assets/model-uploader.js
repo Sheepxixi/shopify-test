@@ -726,13 +726,14 @@
  function toggleFileSelection(fileId, isSelected) {
   console.log(`Toggling selection for file ${fileId} to ${isSelected}`);
   
-  const file = fileManager.getFileById(fileId);
+  const file = fileManager.files.get(fileId);
   if (!file) {
     console.error(`File with ID ${fileId} not found.`);
     return;
   }
 
-  const associatedIds = getCorresponding2DFiles(fileId);
+  // FIX: Ensure we get an array of IDs, not objects
+  const associatedIds = getCorresponding2DFiles(fileId).map(f => f.id);
   const allIdsToToggle = [fileId, ...associatedIds];
 
   allIdsToToggle.forEach(id => {
@@ -756,7 +757,8 @@
 
    function updateBulkButtonState() {
     if (!addToCartBtn) return;
-    const selected3DFileIds = Array.from(selectedFileIds).filter(id => {
+    // FIX: selectedFileIds is already an array, no need for Array.from
+    const selected3DFileIds = selectedFileIds.filter(id => {
         const fd = fileManager.files.get(id);
         return fd && is3DFile(fd.file.name);
     });
@@ -773,7 +775,6 @@
     });
     addToCartBtn.disabled = invalid;
   }
-
 
   async function handleBulkAddToCart() {
     // 已废弃独立按钮逻辑，改为走 handleAddToCart
