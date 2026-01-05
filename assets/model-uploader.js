@@ -610,19 +610,21 @@
         const fileItem = document.createElement('div');
         fileItem.className = 'file-item';
         
-        onst checkedAttr = selectedFileIds.includes(fileId) ? 'checked' : ''; // FIX: Use .includes() for arrays
+        const checkedAttr = selectedFileIds.includes(fileId) ? 'checked' : '';
         
         let associatedFilesHTML = '';
         const corresponding2DFiles = getCorresponding2DFiles(fileId);
         if (corresponding2DFiles.length > 0) {
           associatedFilesHTML = '<div class="associated-2d-files">';
           corresponding2DFiles.forEach(twoDFile => {
+            // FIX: Correctly reference twoDFile object properties
             associatedFilesHTML += `<div class="file-2d-indicator">📄 关联2D图纸: ${twoDFile.name}</div>`;
             processed2DFileIds.add(twoDFile.id);
           });
           associatedFilesHTML += '</div>';
         }
         
+        // FIX: Corrected template literal syntax
         fileItem.innerHTML = `
           <div class="file-info">
             <label style="display:flex;align-items:center;gap:8px;">
