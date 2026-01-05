@@ -1135,107 +1135,121 @@
 
   // 提交到草稿订单（第一步：立即询价）
    async function submitToDraftOrder() {
-  console.log('准备提交到草稿订单，已选择的文件ID:', selectedFileIds);
+    console.log('📝 创建草稿订单...');
+    console.log('选中的文件ID:', selectedFileIds);
 
-  if (selectedFileIds.length === 0) {
-    showToast('请至少选择一个3D模型文件。');
-    return;
-  }
-
-  // 确保至少选择了一个3D文件
-  const has3DFile = selectedFileIds.some(id => {
-    const file = fileManager.getFileById(id);
-    return file && file.isMain;
-  });
-
-  if (!has3DFile) {
-    showToast('请至少选择一个3D模型文件。');
-    return;
-  }
-
-  showLoading('正在准备文件，请稍候...');
-
-  try {
-    const customer = await getCustomerInfo();
-    if (!customer || !customer.email) {
-      showToast('无法获取客户信息，请确保您已登录。');
-      hideLoading();
+    // 确保至少选择了一个文件
+    if (selectedFileIds.length === 0) {
+      showError('请至少选择一个文件进行询价');
       return;
     }
 
-    // 1. 构建 Line Items
-    // 我们只为每个选中的3D文件创建一个 line item
-    const lineItems = selectedFileIds
-      .map(id => fileManager.getFileById(id))
-      .filter(file => file && file.isMain)
-      .map(file => ({
-        title: file.name,
-        quantity: 1, // 默认数量为1
-        customAttributes: [
-          { key: "Original Filename", value: file.name }
-        ]
-      }));
+    // 从 DOM 中获取客户信息
+    const customerId = document.getElementById('customer-id')?.value;
+    const customerEmail = document.getElementById('customer-email')?.value;
+    const customerFirstName = document.getElementById('customer-first-name')?.value;
+    const customerLastName = document.getElementById('customer-last-name')?.value;
 
-    // 2. 准备要上传的文件数组 (包含Base64数据)
-    const filesToUpload = await Promise.all(
-      selectedFileIds.map(async (id) => {
-        const file = fileManager.getFileById(id);
-        if (!file) return null;
+    // 构造 line_items
+    const lineItems = [];
+    for (const fileId of selectedFileIds) {
+      const file = fileManager.files.get(fileId);
+      // 仅为 3D 文件创建 line item
+      if (file && file.name.match(/\.(stl|obj|step|stp|3mf|iges)$/i)) {
+        const config = file.config || getDefaultParameters();
+        lineItems.push({
+          title: file.name,
+          quantity: config.qty,
+          properties: [
+            { name: 'Material', value: config.material },
+            { name: 'Finish', value: config.finish },
+            { name: 'Scale', value: `${config.scale * 100}%` },
+            { name: 'Dimensions', value: config.dimensions },
+            { name: 'Precision', value: config.precision },
+            { name: 'Tolerance', value: config.tolerance },
+            { name: 'Roughness', value: config.roughness },
+            { name: 'Has Thread', value: config.hasThread },
+            { name: 'Has Assembly', value: config.hasAssembly },
+            { name: 'Note', value: config.note },
+            { name: '_fileId', value: fileId.toString() }
+          ]
+        });
+      }
+    }
+    
+    console.log('准备提交到草稿订单，已选择的文件ID:', selectedFileIds);
 
-        const fileData = await getFileBase64(file.rawFile);
-        return {
-          fileData: fileData.split(',')[1], // 去掉 "data:..." 前缀
-          fileName: file.name,
-          isMain: file.isMain || false
-        };
-      })
-    );
-
-    const validFiles = filesToUpload.filter(f => f !== null);
-
-    // 3. 构建最终的请求体
-    const payload = {
-      customerEmail: customer.email,
-      customerName: customer.name,
-      lineItems: lineItems,
-      files: validFiles
-    };
-
-    console.log('最终发送到后端的Payload:', {
-      ...payload,
-      files: payload.files.map(f => ({ ...f, fileData: '...data truncated...' })) // 避免在控制台打印大的base64字符串
-    });
-
-    // 4. 发送请求
-    const response = await fetch('/api/submit-quote-real', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(payload),
-    });
-
-    hideLoading();
-
-    if (response.ok) {
-      const result = await response.json();
-      console.log('询价提交成功:', result);
-      showToast(result.message || '您的询价已成功提交！', 'success');
-      // 可选：清空选择或跳转页面
-      // clearSelection(); 
-      // window.location.href = '/';
-    } else {
-      const errorResult = await response.json();
-      console.error('询价提交失败:', errorResult);
-      showToast(`提交失败: ${errorResult.message || '未知错误'}`, 'error');
+    // 准备要上传的文件数组
+    const filesToUpload = [];
+    for (const fileId of selectedFileIds) {
+      // 从 Map 中获取文件对象
+      const fileObject = fileManager.files.get(fileId);
+      if (fileObject) {
+        try {
+          const fileData = await getFileBase64(fileObject);
+          const isMain = fileObject.name.match(/\.(stl|obj|step|stp|3mf|iges)$/i) !== null;
+          
+          filesToUpload.push({
+            fileData: fileData.split(',')[1], // 移除 data: URL 前缀
+            fileName: fileObject.name,
+            isMain: isMain
+          });
+        } catch (error) {
+          console.error(`Error processing file ${fileObject.name}:`, error);
+        }
+      }
     }
 
-  } catch (error) {
-    hideLoading();
-    console.error('提交过程中发生异常:', error);
-    showToast(`发生错误: ${error.message}`, 'error');
+    // 验证是否至少有一个主文件（3D文件）
+    const hasMainFile = selectedFileIds.some(fileId => {
+      const file = fileManager.files.get(fileId);
+      return file && file.name.match(/\.(stl|obj|step|stp|3mf|iges)$/i);
+    });
+
+    if (!hasMainFile) {
+      showError('您选择的文件中必须至少包含一个3D模型文件 (如 .stl, .step, .iges).');
+      return;
+    }
+
+    // 构建发送到后端的 payload
+    const payload = {
+      customerId,
+      customerEmail,
+      customerFirstName,
+      customerLastName,
+      lineItems,
+      files: filesToUpload
+    };
+
+    try {
+      const response = await fetch('/api/submit-quote-real', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+      }
+
+      const result = await response.json();
+      console.log('✅ Draft order created successfully:', result);
+      showSuccess('您的询价已成功提交！我们将尽快处理。草稿订单ID: ' + result.draftOrderId);
+      
+      // 清空已选择的文件并刷新列表
+      selectedFileIds = [];
+      displayFileList();
+      updateBulkButtonState();
+
+    } catch (error) {
+      console.error('❌ Draft order submission failed:', error);
+      console.error('❌ 错误堆栈:', error.stack);
+      showError(`询价提交失败: ${error.message}`);
+    }
   }
-}
 
   // 提交到购物车（第二步：从草稿订单到购物车）
   async function submitToCart() {
