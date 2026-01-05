@@ -1138,24 +1138,32 @@
     console.log('📝 创建草稿订单...');
     console.log('选中的文件ID:', selectedFileIds);
 
-    // 确保至少选择了一个文件
     if (selectedFileIds.length === 0) {
       showError('请至少选择一个文件进行询价');
       return;
     }
 
-    // 从 DOM 中获取客户信息
     const customerId = document.getElementById('customer-id')?.value;
     const customerEmail = document.getElementById('customer-email')?.value;
     const customerFirstName = document.getElementById('customer-first-name')?.value;
     const customerLastName = document.getElementById('customer-last-name')?.value;
 
-    // 构造 line_items
     const lineItems = [];
+    const filesToUpload = [];
+    let hasMainFile = false;
+
     for (const fileId of selectedFileIds) {
       const file = fileManager.files.get(fileId);
-      // 仅为 3D 文件创建 line item
-      if (file && file.name.match(/\.(stl|obj|step|stp|3mf|iges)$/i)) {
+
+      if (!file || !file.name) {
+        console.warn(`在 fileManager 中找不到 ID 为 ${fileId} 的文件或文件信息不完整，已跳过。`);
+        continue;
+      }
+
+      const is3DFile = file.name.match(/\.(stl|obj|step|stp|3mf|iges)$/i);
+
+      if (is3DFile) {
+        hasMainFile = true;
         const config = file.config || getDefaultParameters();
         lineItems.push({
           title: file.name,
@@ -1175,43 +1183,24 @@
           ]
         });
       }
-    }
-    
-    console.log('准备提交到草稿订单，已选择的文件ID:', selectedFileIds);
 
-    // 准备要上传的文件数组
-    const filesToUpload = [];
-    for (const fileId of selectedFileIds) {
-      // 从 Map 中获取文件对象
-      const fileObject = fileManager.files.get(fileId);
-      if (fileObject) {
-        try {
-          const fileData = await getFileBase64(fileObject);
-          const isMain = fileObject.name.match(/\.(stl|obj|step|stp|3mf|iges)$/i) !== null;
-          
-          filesToUpload.push({
-            fileData: fileData.split(',')[1], // 移除 data: URL 前缀
-            fileName: fileObject.name,
-            isMain: isMain
-          });
-        } catch (error) {
-          console.error(`Error processing file ${fileObject.name}:`, error);
-        }
+      try {
+        const fileData = await getFileBase64(file);
+        filesToUpload.push({
+          fileData: fileData.split(',')[1],
+          fileName: file.name,
+          isMain: !!is3DFile
+        });
+      } catch (error) {
+        console.error(`处理文件 ${file.name} 时出错:`, error);
       }
     }
-
-    // 验证是否至少有一个主文件（3D文件）
-    const hasMainFile = selectedFileIds.some(fileId => {
-      const file = fileManager.files.get(fileId);
-      return file && file.name.match(/\.(stl|obj|step|stp|3mf|iges)$/i);
-    });
 
     if (!hasMainFile) {
       showError('您选择的文件中必须至少包含一个3D模型文件 (如 .stl, .step, .iges).');
       return;
     }
 
-    // 构建发送到后端的 payload
     const payload = {
       customerId,
       customerEmail,
@@ -1239,7 +1228,6 @@
       console.log('✅ Draft order created successfully:', result);
       showSuccess('您的询价已成功提交！我们将尽快处理。草稿订单ID: ' + result.draftOrderId);
       
-      // 清空已选择的文件并刷新列表
       selectedFileIds = [];
       displayFileList();
       updateBulkButtonState();
