@@ -1,4 +1,4 @@
-// api/submit-quote-real.js
+//api/submit-quote-real.js
 /**
  * ═══════════════════════════════════════════════════════════════
  * 真实提交询价API - 创建Shopify Draft Order
@@ -71,8 +71,7 @@ export default async function handler(req, res) {
         material = 'ABS',
         color = '白色',
         precision = '标准 (±0.1mm)',
-        lineItems = [],
-        files // 新增：多文件数组
+        lineItems = []
       } = req.body;
 
       // 生成询价单号
@@ -88,8 +87,7 @@ export default async function handler(req, res) {
         color,
         precision,
         lineItemsCount: lineItems.length,
-        lineItemsData: lineItems.length > 0 ? lineItems[0] : null,
-        filesCount: Array.isArray(files) ? files.length : 0
+        lineItemsData: lineItems.length > 0 ? lineItems[0] : null
       });
 
       // 创建Shopify Draft Order的GraphQL查询
@@ -139,59 +137,56 @@ export default async function handler(req, res) {
       
       console.log('使用的邮箱:', validEmail);
 
-      // ================= 多文件处理开始 =================
-      // 兼容原有单文件逻辑
-      let filesArr = Array.isArray(files) && files.length > 0 ? files : [{
-        fileName,
-        fileUrl: req.body.fileUrl,
-        fileType: 'application/octet-stream'
-      }];
-
-      let uploadedFiles = [];
-      for (let i = 0; i < filesArr.length; i++) {
-        let fileObj = filesArr[i];
-        let shopifyFileInfo = null;
+       // 遍历所有 lineItems，处理每个文件上传（支持3D+2D文件）
+      for (let item of lineItems) {
+        // 查找每个文件的 fileUrl（Base64数据）
+        let fileUrlAttr = item.customAttributes?.find(attr => attr.key === '文件URL');
+        let fileName = item.title || 'model.stl';
         let fileId = `file_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-        if (fileObj.fileUrl && fileObj.fileUrl.startsWith('data:')) {
-          console.log('使用的API_BASE_URL:', API_BASE_URL);
-          console.log(`📁 开始上传文件${i + 1}到Shopify Files...`);
+        let shopifyFileInfo = null;
+
+        if (fileUrlAttr && fileUrlAttr.value && fileUrlAttr.value.startsWith('data:')) {
           try {
             const storeFileResponse = await fetch(`${API_BASE_URL}/api/store-file-real`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
-                fileData: fileObj.fileUrl,
-                fileName: fileObj.fileName || 'model.stl',
-                fileType: fileObj.fileType || 'application/octet-stream'
+                fileData: fileUrlAttr.value,
+                fileName: fileName,
+                fileType: 'application/octet-stream'
               })
             });
             if (storeFileResponse.ok) {
-              const contentType = storeFileResponse.headers.get('content-type');
-              if (contentType && contentType.includes('application/json')) {
-                shopifyFileInfo = await storeFileResponse.json();
-                fileId = shopifyFileInfo.fileId;
-                console.log(`✅ 文件${i + 1}上传到Shopify Files成功:`, shopifyFileInfo);
+              shopifyFileInfo = await storeFileResponse.json();
+              fileId = shopifyFileInfo.fileId;
+              // 更新 customAttributes 里的 文件ID
+              let fileIdAttr = item.customAttributes.find(attr => attr.key === '文件ID');
+              if (fileIdAttr) fileIdAttr.value = fileId;
+              // 也可以把 shopifyFileInfo.fileUrl 存到 customAttributes 里，方便后续引用
+              let fileUrlShopifyAttr = item.customAttributes.find(attr => attr.key === 'Shopify文件URL');
+              if (fileUrlShopifyAttr) {
+                fileUrlShopifyAttr.value = shopifyFileInfo.fileUrl;
               } else {
-                console.warn(`⚠️ 文件${i + 1}上传API返回非JSON响应，使用Base64存储`);
+                item.customAttributes.push({ key: 'Shopify文件URL', value: shopifyFileInfo.fileUrl });
               }
-            } else {
-              console.warn(`⚠️ 文件${i + 1}上传到Shopify Files失败，状态码:`, storeFileResponse.status, '使用Base64存储');
             }
           } catch (uploadError) {
-            console.warn(`⚠️ 文件${i + 1}上传到Shopify Files异常:`, uploadError.message);
+            console.warn('⚠️ 文件上传到Shopify Files异常:', uploadError.message);
+            // 上传失败，保留原始fileId
           }
         }
-        uploadedFiles.push({
-          fileName: fileObj.fileName,
-          fileId,
-          shopifyFileId: shopifyFileInfo ? shopifyFileInfo.shopifyFileId : null,
-          shopifyFileUrl: shopifyFileInfo ? shopifyFileInfo.shopifyFileUrl : fileObj.fileUrl,
-          originalFileSize: shopifyFileInfo ? shopifyFileInfo.originalFileSize : null
-        });
       }
-      // ================= 多文件处理结束 =================
+      
+      console.log('✅ 生成文件ID:', fileId);
 
-      // 构建customAttributes（多文件拼接）
+      // 如果有文件数据，将其存储到Shopify的note字段中
+      let fileDataStored = false;
+      if (req.body.fileUrl && req.body.fileUrl.startsWith('data:')) {
+        console.log('✅ 检测到Base64文件数据，准备存储');
+        fileDataStored = true;
+      }
+
+      // 构建customAttributes
       const normalizeValue = (value, fallback = '') => {
         if (value === null || value === undefined) {
           return fallback;
@@ -200,24 +195,28 @@ export default async function handler(req, res) {
       };
 
       const baseAttributes = [
+        // 基本参数
         { key: '材料', value: normalizeValue(material, '未提供') },
         { key: '颜色', value: normalizeValue(color, '未提供') },
         { key: '精度', value: normalizeValue(precision, '未提供') },
-        { key: '询价单号', value: normalizeValue(quoteId) }
+        { key: '文件', value: normalizeValue(fileName || 'model.stl') },
+        { key: '文件ID', value: normalizeValue(fileId, '未生成') },
+        { key: '询价单号', value: normalizeValue(quoteId) },
+        { key: 'Shopify文件ID', value: normalizeValue(shopifyFileInfo ? shopifyFileInfo.shopifyFileId : null, '未上传') },
+        { key: 'Shopify文件URL', value: normalizeValue(shopifyFileInfo ? shopifyFileInfo.shopifyFileUrl : null, '未上传') },
+        { key: '文件存储方式', value: shopifyFileInfo ? 'Shopify Files' : 'Base64' },
+        { key: '原始文件大小', value: normalizeValue(shopifyFileInfo ? shopifyFileInfo.originalFileSize : null, '未知') },
+        { key: '文件数据', value: shopifyFileInfo ? '已上传到Shopify Files' : (req.body.fileUrl && req.body.fileUrl.startsWith('data:') ? '已存储Base64数据' : '未提供') }
       ];
-      uploadedFiles.forEach((file, idx) => {
-        baseAttributes.push({ key: `文件${idx + 1}`, value: normalizeValue(file.fileName || 'model.stl') });
-        baseAttributes.push({ key: `文件ID${idx + 1}`, value: normalizeValue(file.fileId, '未生成') });
-        baseAttributes.push({ key: `Shopify文件ID${idx + 1}`, value: normalizeValue(file.shopifyFileId, '未上传') });
-        baseAttributes.push({ key: `Shopify文件URL${idx + 1}`, value: normalizeValue(file.shopifyFileUrl, '未上传') });
-        baseAttributes.push({ key: `原始文件大小${idx + 1}`, value: normalizeValue(file.originalFileSize, '未知') });
-      });
 
+      
       // 从前端lineItems中提取的详细参数，过滤掉Base64数据
       const frontendAttributes = lineItems.length > 0 && lineItems[0].customAttributes ? lineItems[0].customAttributes.filter(attr => {
+        // 过滤掉包含Base64数据的属性
         if (attr.key === '文件数据' || attr.key === 'fileData' || attr.key === 'file_data') {
           return false;
         }
+        // 过滤掉值过长的属性（可能是Base64数据）
         if (attr.value && attr.value.length > 1000) {
           console.log('⚠️ 过滤掉过长的属性:', attr.key, '长度:', attr.value.length);
           return false;
@@ -242,13 +241,13 @@ export default async function handler(req, res) {
         taxExempt: true, // 免除税费，避免额外费用
         lineItems: [
           {
-            title: `3D打印服务 - ${uploadedFiles.map(f => f.fileName).join(', ')}`,
+            title: `3D打印服务 - ${fileName || 'model.stl'}`,
             quantity: parseInt(quantity) || 1,
             originalUnitPrice: "0.00", // 占位价格，后续由管理员更新
             customAttributes: allAttributes
           }
         ],
-        note: `询价单号: ${quoteId}\n客户: ${customerName || '未提供'}\n文件: ${uploadedFiles.map(f => f.fileName).join(', ')}\n文件数量: ${uploadedFiles.length}\n文件大小: ${uploadedFiles.map(f => f.originalFileSize || '未知').join(', ')}`
+        note: `询价单号: ${quoteId}\n客户: ${customerName || '未提供'}\n文件: ${fileName || '未提供'}\n文件大小: ${req.body.fileUrl ? Math.round(req.body.fileUrl.length / 1024) + 'KB' : '未提供'}`
       };
 
       // 获取环境变量 - 支持多种变量名
@@ -305,7 +304,7 @@ export default async function handler(req, res) {
         invoiceUrl: draftOrder.invoiceUrl,
         customerEmail: customerEmail || 'test@example.com',
         fileName: fileName || 'test.stl',
-        files: uploadedFiles,
+        fileId: fileId,
         nextSteps: [
           '1. 您将收到询价确认邮件',
           '2. 客服将评估您的需求并报价',
