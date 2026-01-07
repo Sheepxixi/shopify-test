@@ -1,4 +1,3 @@
-//assets/model-uploader.js
 /**
  * 3D Model Uploader - Complete Multi-File Version
  * 支持多文件独立管理、ZIP解压、完整错误反馈
@@ -28,12 +27,348 @@
   // DOM 元素
   let fileInput, dropzone, modelViewer, viewerContainer;
   let loadingIndicator, errorMessage, fileList, fileItems;
-  let materialSelect, finishSelect, scaleSlider, scaleValue;
+  let materialCategorySelect, materialSelect, surfaceListContainer, surfaceToggleYes, surfaceToggleNo;
   let qtyInput, qtyMinus, qtyPlus;
   let dimensionsDisplay, dimensionsValue;
   let addToCartBtn, form;
-  let hasThreadRadios, hasAssemblyRadios, toleranceSelect, roughnessSelect, noteTextarea;
-  let precisionSelect, charCount;
+  let hasThreadRadios, hasAssemblyRadios, tightestSelect, roughnessSelect, noteTextarea;
+  let charCount;
+
+  // 材料类型映射
+  const MATERIAL_TYPE_MAP = {
+    '铝合金': ['铝合金-6061', '铝合金-7075'],
+    '塑料': [
+      '工程塑料-ABS（白色）',
+      '工程塑料-ABS（黑色）',
+      '赛钢-POM（白色）',
+      '赛钢-POM（黑色）',
+      '电木（黑色）',
+      '电木（橘黄色）',
+      '亚克力',
+      '环氧板-FR4（绿色）',
+      '尼龙-PA6（白色）',
+      '聚碳酸酯-PC'
+    ],
+    '铜合金': ['黄铜-H59', '紫铜-T2'],
+    '合金钢': ['45#钢'],
+    '不锈钢': ['SUS304']
+  };
+  const DEFAULT_MATERIAL_CATEGORY = '铝合金';
+
+  // 表面处理配置（按材料类别）
+  const ALUMINUM_PRIMARY = [
+    '喷砂+普通阳极氧化',
+    '喷砂+导电氧化',
+    '喷砂+硬质阳极氧化',
+    '拉丝',
+    '仅喷砂',
+    '普通阳极氧化(不喷砂)',
+    '导电氧化(不喷砂)',
+    '硬质阳极氧化(不喷砂)',
+    '拉丝+普通阳极氧化'
+  ];
+  const ALUMINUM_SECONDARY = ['不做', '激光打标', 'UV打印'];
+  const ALUMINUM_COLORS = ['本色', '黑色', '深空灰', '红色', '粉红色', '天蓝色', '深绿色', '沙金', '宝蓝色'];
+
+  const PLASTIC_OIL_TYPES = ['工程塑料-ABS（白色）', '工程塑料-ABS（黑色）', '电木（黑色）', '电木（橘黄色）'];
+  const PLASTIC_UV_TYPES = ['赛钢-POM（白色）', '赛钢-POM（黑色）', '尼龙-PA6（白色）', '环氧板-FR4（绿色）'];
+  const PLASTIC_CLEAR_TYPES = ['亚克力', '聚碳酸酯-PC'];
+
+  const OIL_COLORS = ['黑色', '白色'];
+  const UV_COLORS = ['黑色', '白色', '红色', '橙色', '黄色', '绿色', '青色', '紫色'];
+  const SHEEN_OIL = ['哑光']; // 喷油仅哑光
+
+  function getDefaultMaterialType(category) {
+    const types = MATERIAL_TYPE_MAP[category] || [];
+    return types[0] || '';
+  }
+
+  function getCategoryForMaterial(materialType) {
+    if (!materialType) return null;
+    for (const [category, list] of Object.entries(MATERIAL_TYPE_MAP)) {
+      if (list.includes(materialType)) {
+        return category;
+      }
+    }
+    return null;
+  }
+
+  function refreshMaterialTypeOptions(category, selectedType) {
+    if (!materialSelect) return '';
+    const types = MATERIAL_TYPE_MAP[category] || [];
+    materialSelect.innerHTML = '';
+    types.forEach((type) => {
+      const option = document.createElement('option');
+      option.value = type;
+      option.textContent = type;
+      materialSelect.appendChild(option);
+    });
+    const nextType = types.includes(selectedType) ? selectedType : (types[0] || '');
+    if (nextType) {
+      materialSelect.value = nextType;
+    }
+    return nextType;
+  }
+
+  function initializeMaterialSelectors() {
+    const category = materialCategorySelect?.value || DEFAULT_MATERIAL_CATEGORY;
+    const currentTypeValue = materialSelect?.value || '';
+    const normalizedType = refreshMaterialTypeOptions(category, currentTypeValue || getDefaultMaterialType(category));
+    if (materialCategorySelect && !materialCategorySelect.value) {
+      materialCategorySelect.value = category;
+    }
+    if (materialSelect && normalizedType) {
+      materialSelect.value = normalizedType;
+    }
+  }
+
+  function getSurfaceRule(materialType, materialCategory) {
+    // 默认铝合金
+    const isPlastic = materialCategory === '塑料';
+    if (materialCategory === '铝合金') {
+      return {
+        primary: ALUMINUM_PRIMARY,
+        secondary: ALUMINUM_SECONDARY,
+        colorMap: {
+          default: ALUMINUM_COLORS,
+          'UV打印': UV_COLORS
+        },
+        sheenMap: {
+          // 无额外光泽选项
+        }
+      };
+    }
+
+    if (isPlastic) {
+      if (PLASTIC_OIL_TYPES.includes(materialType)) {
+        return {
+          primary: ['喷油', 'UV打印'],
+          secondary: ['不做', '喷油', 'UV打印'],
+          colorMap: {
+            '喷油': OIL_COLORS,
+            'UV打印': UV_COLORS
+          },
+          sheenMap: {
+            '喷油': SHEEN_OIL
+          }
+        };
+      }
+      if (PLASTIC_UV_TYPES.includes(materialType)) {
+        return {
+          primary: ['UV打印'],
+          secondary: ['不做', 'UV打印'],
+          colorMap: { 'UV打印': UV_COLORS },
+          sheenMap: {}
+        };
+      }
+      if (PLASTIC_CLEAR_TYPES.includes(materialType)) {
+        return {
+          primary: ['UV打印', '仅喷砂', '透明抛光'],
+          secondary: ['不做', 'UV打印'],
+          colorMap: {
+            'UV打印': UV_COLORS,
+            '仅喷砂': [],
+            '透明抛光': []
+          },
+          sheenMap: {}
+        };
+      }
+    }
+
+    // 铜合金：表面处理1只有"仅喷砂"和"镜面抛光"，没有表面处理2
+    if (materialCategory === '铜合金') {
+      return {
+        primary: ['仅喷砂', '镜面抛光'],
+        secondary: ['不做'], // 没有表面处理2
+        colorMap: {
+          default: [],
+          '仅喷砂': [],
+          '镜面抛光': []
+        },
+        sheenMap: {}
+      };
+    }
+
+    // 合金钢：表面处理1有"发黑"、"激光打标"、"拉丝"、"仅喷砂"，表面处理2和1一样
+    if (materialCategory === '合金钢') {
+      const alloySteelOptions = ['发黑', '激光打标', '拉丝', '仅喷砂'];
+      return {
+        primary: alloySteelOptions,
+        secondary: ['不做', ...alloySteelOptions],
+        colorMap: {
+          default: [],
+          '发黑': [],
+          '激光打标': [],
+          '拉丝': [],
+          '仅喷砂': []
+        },
+        sheenMap: {}
+      };
+    }
+
+    // 不锈钢：表面处理1有"激光打标"、"拉丝"、"仅喷砂"，表面处理2和1一样
+    if (materialCategory === '不锈钢') {
+      const stainlessSteelOptions = ['激光打标', '拉丝', '仅喷砂'];
+      return {
+        primary: stainlessSteelOptions,
+        secondary: ['不做', ...stainlessSteelOptions],
+        colorMap: {
+          default: [],
+          '激光打标': [],
+          '拉丝': [],
+          '仅喷砂': []
+        },
+        sheenMap: {}
+      };
+    }
+
+    // 其他材质 fallback：仅“不做”
+    return {
+      primary: ['不做'],
+      secondary: ['不做'],
+      colorMap: { default: [] },
+      sheenMap: {}
+    };
+  }
+
+  function normalizeSurfaceTreatments(treatments, surfaceEnabled = true, rule = getSurfaceRule(getDefaultMaterialType(DEFAULT_MATERIAL_CATEGORY), DEFAULT_MATERIAL_CATEGORY)) {
+    if (!surfaceEnabled) return [];
+    const primaryList = rule.primary || ['不做'];
+    const secondaryList = rule.secondary || ['不做'];
+    const primaryColors = rule.colorMap?.default || [];
+    const secondaryColors = rule.colorMap?.default || [];
+
+    const primary = treatments && treatments[0] ? treatments[0] : {};
+    const secondary = treatments && treatments[1] ? treatments[1] : {};
+
+    const normPrimaryProcess = primaryList.includes(primary.process) ? primary.process : primaryList[0];
+    const normSecondaryProcess = secondaryList.includes(secondary.process) ? secondary.process : secondaryList[0];
+
+    const primaryColorOptions = rule.colorMap?.[normPrimaryProcess] ?? primaryColors;
+    const secondaryColorOptions = rule.colorMap?.[normSecondaryProcess] ?? secondaryColors;
+
+    const primarySheenOptions = rule.sheenMap?.[normPrimaryProcess] || [];
+    const secondarySheenOptions = rule.sheenMap?.[normSecondaryProcess] || [];
+
+    const normalizeColor = (val, opts) => (opts && opts.length ? (opts.includes(val) ? val : opts[0]) : '');
+    const normalizeSheen = (val, opts) => (opts && opts.length ? (opts.includes(val) ? val : opts[0]) : '');
+
+    const normalizedPrimary = {
+      process: normPrimaryProcess,
+      color: normalizeColor(primary.color, primaryColorOptions),
+      sheen: normalizeSheen(primary.sheen, primarySheenOptions),
+      allowedProcesses: primaryList,
+      allowedColors: primaryColorOptions,
+      allowedSheen: primarySheenOptions
+    };
+
+    const normalizedSecondary = {
+      process: normSecondaryProcess,
+      color: normalizeColor(secondary.color, secondaryColorOptions),
+      sheen: normalizeSheen(secondary.sheen, secondarySheenOptions),
+      allowedProcesses: secondaryList,
+      allowedColors: secondaryColorOptions,
+      allowedSheen: secondarySheenOptions
+    };
+
+    return [normalizedPrimary, normalizedSecondary];
+  }
+
+  function stringifySurfaceTreatments(treatments, surfaceEnabled = true) {
+    if (!surfaceEnabled) return '无需表面处理';
+    if (!treatments || treatments.length === 0) return '无需表面处理';
+    return treatments.map(t => {
+      if (!t.process || t.process === '不做') return '';
+      const parts = [];
+      if (t.process) parts.push(t.process);
+      const detail = [t.color, t.sheen].filter(Boolean).join(' / ');
+      if (detail) parts.push(`（${detail}）`);
+      return parts.join('');
+    }).filter(Boolean).join(' | ');
+  }
+
+  function renderSurfaceTreatments(config) {
+    if (!surfaceListContainer) return;
+    const category = config.materialCategory || DEFAULT_MATERIAL_CATEGORY;
+    const type = config.material || getDefaultMaterialType(category);
+    const rule = getSurfaceRule(type, category);
+    const treatments = normalizeSurfaceTreatments(config.surfaceTreatments, config.surfaceEnabled !== false, rule);
+    config.surfaceTreatments = treatments;
+
+    surfaceListContainer.innerHTML = '';
+
+    treatments.forEach((treatment, idx) => {
+      const wrapper = document.createElement('div');
+      wrapper.className = 'surface-item';
+      wrapper.style.display = 'flex';
+      wrapper.style.gap = '8px';
+      wrapper.style.alignItems = 'center';
+      wrapper.style.marginBottom = '8px';
+
+      const label = document.createElement('div');
+      label.textContent = `表面处理${idx + 1}:`;
+      label.style.minWidth = '88px';
+      wrapper.appendChild(label);
+
+      const processSelect = document.createElement('select');
+      processSelect.className = 'config-select surface-process-select';
+      const processOptions = idx === 0 ? rule.primary : rule.secondary;
+      processOptions.forEach(opt => {
+        const option = document.createElement('option');
+        option.value = opt;
+        option.textContent = opt;
+        processSelect.appendChild(option);
+      });
+      processSelect.value = treatment.process;
+      processSelect.addEventListener('change', updateCurrentFileParameters);
+      wrapper.appendChild(processSelect);
+
+      const colorOptions = rule.colorMap?.[treatment.process] ?? rule.colorMap?.default ?? [];
+      let colorSelect = null;
+      if (colorOptions.length > 0) {
+        colorSelect = document.createElement('select');
+        colorSelect.className = 'config-select surface-color-select';
+        colorOptions.forEach(opt => {
+          const option = document.createElement('option');
+          option.value = opt;
+          option.textContent = opt;
+          colorSelect.appendChild(option);
+        });
+        colorSelect.value = treatment.color;
+        colorSelect.addEventListener('change', updateCurrentFileParameters);
+        wrapper.appendChild(colorSelect);
+      }
+
+      const sheenOptions = rule.sheenMap?.[treatment.process] || [];
+      if (sheenOptions.length > 0) {
+        const sheenSelect = document.createElement('select');
+        sheenSelect.className = 'config-select surface-sheen-select';
+        sheenOptions.forEach(opt => {
+          const option = document.createElement('option');
+          option.value = opt;
+          option.textContent = opt;
+          sheenSelect.appendChild(option);
+        });
+        sheenSelect.value = sheenOptions.includes(treatment.sheen) ? treatment.sheen : sheenOptions[0];
+        sheenSelect.addEventListener('change', updateCurrentFileParameters);
+        wrapper.appendChild(sheenSelect);
+      }
+
+      surfaceListContainer.appendChild(wrapper);
+    });
+  }
+
+  function collectSurfaceTreatmentsFromUI() {
+    if (!surfaceListContainer) return [];
+    const items = Array.from(surfaceListContainer.querySelectorAll('.surface-item'));
+    return items.map((item, idx) => {
+      const process = item.querySelector('.surface-process-select')?.value || '';
+      const color = item.querySelector('.surface-color-select')?.value || '';
+      const sheen = item.querySelector('.surface-sheen-select')?.value || '';
+      const allowed = Array.from(item.querySelectorAll('.surface-process-select option')).map(o => o.value);
+      return { process, color, sheen, allowedProcesses: allowed, idx };
+    });
+  }
   // 批量（选择集）——使用同一个"立即询价"按钮
   const selectedFileIds = new Set();
   let bulkAddBtn = null; // 不再渲染独立按钮，仅保留占位以兼容旧代码
@@ -57,20 +392,47 @@
     initAdvancedViewer();
     fileList = document.getElementById('file-list');
     fileItems = document.getElementById('file-items');
-    materialSelect = document.getElementById('material');
-    finishSelect = document.getElementById('finish');
-    precisionSelect = document.getElementById('precision');
-    toleranceSelect = document.getElementById('tolerance-standard');
+    materialCategorySelect = document.getElementById('material-category');
+    materialSelect = document.getElementById('material-type');
+    surfaceListContainer = document.getElementById('surface-list');
+    surfaceToggleYes = document.querySelector('input[name="surface-enabled"][value="yes"]');
+    surfaceToggleNo = document.querySelector('input[name="surface-enabled"][value="no"]');
+    tightestSelect = document.getElementById('tightest-tolerance');
     roughnessSelect = document.getElementById('surface-roughness');
     hasThreadRadios = document.querySelectorAll('input[name="has-thread"]');
     hasAssemblyRadios = document.querySelectorAll('input[name="has-assembly-mark"]');
     noteTextarea = document.getElementById('note');
     charCount = document.getElementById('char-count');
-    scaleSlider = document.getElementById('scale');
-    scaleValue = document.getElementById('scale-value');
+    initializeMaterialSelectors();
+    const initCategory = materialCategorySelect?.value || DEFAULT_MATERIAL_CATEGORY;
+    const initType = materialSelect?.value || getDefaultMaterialType(initCategory);
+    renderSurfaceTreatments({
+      surfaceTreatments: [],
+      surfaceEnabled: false,
+      materialCategory: initCategory,
+      material: initType
+    });
     qtyInput = document.getElementById('qty');
     qtyMinus = document.getElementById('qty-minus');
     qtyPlus = document.getElementById('qty-plus');
+    
+    // 数量按钮事件
+    if (qtyMinus) {
+      qtyMinus.addEventListener('click', () => {
+        const current = parseInt(qtyInput?.value || 1);
+        if (current > 1) {
+          qtyInput.value = current - 1;
+          updateCurrentFileParameters();
+        }
+      });
+    }
+    if (qtyPlus) {
+      qtyPlus.addEventListener('click', () => {
+        const current = parseInt(qtyInput?.value || 1);
+        qtyInput.value = current + 1;
+        updateCurrentFileParameters();
+      });
+    }
     dimensionsDisplay = document.getElementById('dimensions-display');
     dimensionsValue = document.getElementById('dimensions-value');
     addToCartBtn = document.getElementById('add-to-cart');
@@ -201,8 +563,8 @@
   // 绑定参数变化事件
   function bindParameterEvents() {
     const parameterElements = [
-      materialSelect, finishSelect, precisionSelect, toleranceSelect, roughnessSelect,
-      scaleSlider, qtyInput, noteTextarea
+      materialSelect, tightestSelect, roughnessSelect,
+      qtyInput, noteTextarea
     ];
 
     parameterElements.forEach(element => {
@@ -215,6 +577,26 @@
       }
     });
 
+    if (materialCategorySelect) {
+      materialCategorySelect.addEventListener('change', () => {
+        const category = materialCategorySelect.value || DEFAULT_MATERIAL_CATEGORY;
+        const nextType = refreshMaterialTypeOptions(category, null);
+        if (materialSelect && nextType) {
+          materialSelect.value = nextType;
+        }
+        const fileData = fileManager.files.get(fileManager.currentFileId);
+        if (fileData) {
+          fileData.config.materialCategory = category;
+          fileData.config.material = nextType;
+          fileData.config.surfaceTreatments = normalizeSurfaceTreatments(fileData.config.surfaceTreatments, fileData.config.surfaceEnabled !== false, getSurfaceRule(nextType, category));
+          renderSurfaceTreatments(fileData.config);
+        } else {
+          renderSurfaceTreatments({ surfaceTreatments: [], surfaceEnabled: surfaceToggleYes?.checked, material: nextType, materialCategory: category });
+        }
+        updateCurrentFileParameters();
+      });
+    }
+
     // 单选按钮
     hasThreadRadios.forEach(radio => {
       radio.addEventListener('change', updateCurrentFileParameters);
@@ -223,6 +605,17 @@
     hasAssemblyRadios.forEach(radio => {
       radio.addEventListener('change', updateCurrentFileParameters);
     });
+
+    if (surfaceToggleYes) {
+      surfaceToggleYes.addEventListener('change', () => {
+        handleSurfaceToggle(true);
+      });
+    }
+    if (surfaceToggleNo) {
+      surfaceToggleNo.addEventListener('change', () => {
+        handleSurfaceToggle(false);
+      });
+    }
 
     // 备注字符计数
     if (noteTextarea) {
@@ -446,14 +839,14 @@
   function createDefaultFileConfig() {
     return {
       unit: 'mm',
-      material: 'PLA',
-      finish: 'Natural',
-      precision: 'Standard',
-      tolerance: 'GB/T 1804-2000 m级',
+      materialCategory: DEFAULT_MATERIAL_CATEGORY,
+      material: getDefaultMaterialType(DEFAULT_MATERIAL_CATEGORY),
+      surfaceEnabled: false,
+      surfaceTreatments: [],
+      tightest: 'GB/T 1804-2000 m级',
       roughness: 'Ra3.2',
       hasThread: 'no',
       hasAssembly: 'no',
-      scale: 100,
       quantity: 1,
       note: ''
     };
@@ -630,11 +1023,33 @@
           ${fileData.dimensions ? `<span class="file-dimensions">${fileData.dimensions.width.toFixed(1)} x ${fileData.dimensions.height.toFixed(1)} x ${fileData.dimensions.depth.toFixed(1)} mm</span>` : ''}
       </div>
             <div class="file-actions">
-          <button type="button" class="file-select" onclick="selectFile(${fileId})" ${fileId === fileManager.currentFileId ? 'style="background: #1976d2; color: white;"' : ''}>选择</button>
-          <button type="button" class="file-delete" onclick="removeFile(${fileId})">删除</button>
+          <button type="button" class="file-select" data-file-id="${fileId}" ${fileId === fileManager.currentFileId ? 'style="background: #1976d2; color: white;"' : ''}>选择</button>
+          <button type="button" class="file-delete" data-file-id="${fileId}">删除</button>
           </div>
           ${has2DIndicator}
         `;
+        
+        // 绑定事件处理器
+        const selectBtn = fileItem.querySelector('.file-select');
+        const deleteBtn = fileItem.querySelector('.file-delete');
+        if (selectBtn) {
+          selectBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const id = parseInt(selectBtn.dataset.fileId, 10);
+            console.log('点击选择按钮，fileId:', id, '类型:', typeof id);
+            selectFile(id);
+          });
+        }
+        if (deleteBtn) {
+          deleteBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const id = parseInt(deleteBtn.dataset.fileId, 10);
+            console.log('点击删除按钮，fileId:', id, '类型:', typeof id);
+            removeFile(id);
+          });
+        }
         console.log('Created file item for:', fileData.file.name);
         fileItems.appendChild(fileItem);
         console.log('Appended file item to fileItems, fileItems.children.length:', fileItems.children.length);
@@ -668,11 +1083,33 @@
               <span class="file-type">2D图纸</span>
             </div>
             <div class="file-actions">
-              <button type="button" class="file-select" onclick="selectFile(${fileId})" ${fileId === fileManager.currentFileId ? 'style="background: #1976d2; color: white;"' : ''}>选择</button>
-              <button type="button" class="file-delete" onclick="removeFile(${fileId})">删除</button>
+              <button type="button" class="file-select" data-file-id="${fileId}" ${fileId === fileManager.currentFileId ? 'style="background: #1976d2; color: white;"' : ''}>选择</button>
+              <button type="button" class="file-delete" data-file-id="${fileId}">删除</button>
             </div>
             <div class="file-warning">⚠️ 此2D文件缺少对应的3D文件</div>
           `;
+          
+          // 绑定事件处理器
+          const selectBtn = fileItem.querySelector('.file-select');
+          const deleteBtn = fileItem.querySelector('.file-delete');
+          if (selectBtn) {
+            selectBtn.addEventListener('click', (e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              const id = parseInt(selectBtn.dataset.fileId, 10);
+              console.log('点击选择按钮（2D），fileId:', id, '类型:', typeof id);
+              selectFile(id);
+            });
+          }
+          if (deleteBtn) {
+            deleteBtn.addEventListener('click', (e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              const id = parseInt(deleteBtn.dataset.fileId, 10);
+              console.log('点击删除按钮（2D），fileId:', id, '类型:', typeof id);
+              removeFile(id);
+            });
+          }
           fileItems.appendChild(fileItem);
         }
       }
@@ -723,16 +1160,43 @@
 
   // 选择文件
   function selectFile(fileId) {
-    if (!fileManager.files.has(fileId)) return;
-
-    fileManager.currentFileId = fileId;
-    const fileData = fileManager.files.get(fileId);
+    // 确保 fileId 是数字类型
+    const numericFileId = typeof fileId === 'string' ? parseInt(fileId, 10) : fileId;
     
-    // 更新参数显示
-    updateParameterDisplay(fileData.config);
+    if (!fileManager.files.has(numericFileId)) {
+      console.warn('selectFile: 文件不存在', numericFileId, '所有文件ID:', Array.from(fileManager.files.keys()));
+      return;
+    }
+
+    console.log('选择文件:', numericFileId, '类型:', typeof numericFileId, '当前文件:', fileManager.currentFileId);
+
+    // 先保存当前文件的配置（如果正在编辑其他文件）
+    if (fileManager.currentFileId && fileManager.currentFileId !== numericFileId) {
+      console.log('保存当前文件配置:', fileManager.currentFileId);
+      updateCurrentFileParameters();
+    }
+
+    fileManager.currentFileId = numericFileId;
+    const fileData = fileManager.files.get(numericFileId);
+    
+    if (!fileData) {
+      console.error('selectFile: 文件数据不存在', numericFileId);
+      return;
+    }
+    
+    console.log('加载文件配置:', numericFileId, fileData.config);
+    
+    // 更新参数显示（加载该文件的配置）
+    // 使用标志位防止在加载配置时触发保存
+    window._isLoadingFileConfig = true;
+    try {
+      updateParameterDisplay(fileData.config);
+    } finally {
+      window._isLoadingFileConfig = false;
+    }
     
     // 加载模型
-    loadModelForFile(fileId);
+    loadModelForFile(numericFileId);
     
     // 验证当前文件配置
     validateFileConfiguration(fileData);
@@ -767,7 +1231,17 @@
       if (!fd) return true;
       if (!is3DFile(fd.file.name)) return true; // 只允许3D
       const need2D = fd.config && (fd.config.hasThread === 'yes' || fd.config.hasAssembly === 'yes');
-      return need2D && !hasCorresponding2DFile(id);
+      if (need2D && !hasCorresponding2DFile(id)) return true;
+      
+      // 检查UV打印和激光打标是否需要2D图纸
+      if (fd.config && fd.config.surfaceEnabled !== false && fd.config.surfaceTreatments) {
+        const rule = getSurfaceRule(fd.config.material, fd.config.materialCategory);
+        const surfaceTexts = normalizeSurfaceTreatments(fd.config.surfaceTreatments, true, rule);
+        const hasUV = surfaceTexts.some(t => t.process === 'UV打印');
+        const hasLaserMarking = surfaceTexts.some(t => t.process === '激光打标');
+        if ((hasUV || hasLaserMarking) && !hasCorresponding2DFile(id)) return true;
+      }
+      return false;
     });
     addToCartBtn.disabled = invalid;
   }
@@ -779,9 +1253,17 @@
 
   // 删除文件
   function removeFile(fileId) {
-    if (!fileManager.files.has(fileId)) return;
+    // 确保 fileId 是数字类型
+    const numericFileId = typeof fileId === 'string' ? parseInt(fileId, 10) : fileId;
+    
+    if (!fileManager.files.has(numericFileId)) {
+      console.warn('removeFile: 文件不存在', numericFileId, '所有文件ID:', Array.from(fileManager.files.keys()));
+      return;
+    }
+    
+    console.log('删除文件:', numericFileId, '类型:', typeof numericFileId);
 
-    const fileData = fileManager.files.get(fileId);
+    const fileData = fileManager.files.get(numericFileId);
     
     // 从场景中移除模型
     if (fileData.model && scene) {
@@ -789,13 +1271,13 @@
     }
 
     // 从文件管理器中移除
-    fileManager.files.delete(fileId);
+    fileManager.files.delete(numericFileId);
 
     // 从批量选择中移除
-    selectedFileIds.delete(fileId);
+    selectedFileIds.delete(numericFileId);
 
     // 如果删除的是当前文件，选择另一个文件
-    if (fileId === fileManager.currentFileId) {
+    if (numericFileId === fileManager.currentFileId) {
       if (fileManager.files.size > 0) {
         const firstFileId = fileManager.files.keys().next().value;
         selectFile(firstFileId);
@@ -822,24 +1304,71 @@
   }
 
   // 更新当前文件的参数
+  function handleSurfaceToggle(enabled) {
+    const fileData = fileManager.files.get(fileManager.currentFileId);
+    if (fileData) {
+      fileData.config.surfaceEnabled = enabled;
+      if (!enabled) {
+        fileData.config.surfaceTreatments = [];
+      } else {
+        const rule = getSurfaceRule(fileData.config.material, fileData.config.materialCategory);
+        fileData.config.surfaceTreatments = normalizeSurfaceTreatments(fileData.config.surfaceTreatments, true, rule);
+      }
+      renderSurfaceTreatments(fileData.config);
+      updateCurrentFileParameters();
+    } else {
+      renderSurfaceTreatments({ surfaceTreatments: [], surfaceEnabled: enabled });
+      updateCurrentFileParameters();
+    }
+    if (surfaceListContainer) {
+      surfaceListContainer.style.display = enabled ? 'block' : 'none';
+    }
+  }
+
   function updateCurrentFileParameters() {
-    if (!fileManager.currentFileId) return;
+    // 如果正在加载文件配置，不执行保存操作
+    if (window._isLoadingFileConfig) {
+      console.log('跳过保存：正在加载文件配置');
+      return;
+    }
+
+    if (!fileManager.currentFileId) {
+      console.log('跳过保存：没有当前文件');
+      return;
+    }
 
     const fileData = fileManager.files.get(fileManager.currentFileId);
-    if (!fileData) return;
+    if (!fileData) {
+      console.log('跳过保存：文件数据不存在');
+      return;
+    }
+
+    console.log('保存文件配置:', fileManager.currentFileId, fileData.file.name);
 
     // 更新配置
     fileData.config.unit = document.querySelector('input[name="unit"]:checked')?.value || 'mm';
-    fileData.config.material = materialSelect?.value || 'PLA';
-    fileData.config.finish = finishSelect?.value || 'Natural';
-    fileData.config.precision = precisionSelect?.value || 'Standard';
-    fileData.config.tolerance = toleranceSelect?.value || 'GB/T 1804-2000 m级';
+    const selectedCategory = materialCategorySelect?.value || DEFAULT_MATERIAL_CATEGORY;
+    // 根据类别刷新材料选项，确保类型有效
+    const ensuredType = refreshMaterialTypeOptions(selectedCategory, materialSelect?.value);
+    fileData.config.materialCategory = selectedCategory;
+    fileData.config.material = ensuredType || getDefaultMaterialType(selectedCategory);
+    const rule = getSurfaceRule(fileData.config.material, fileData.config.materialCategory);
+    // 表面处理（可选，固定两项）
+    fileData.config.surfaceEnabled = surfaceToggleYes?.checked ? true : surfaceToggleNo?.checked ? false : fileData.config.surfaceEnabled !== false;
+    fileData.config.surfaceTreatments = normalizeSurfaceTreatments(
+      collectSurfaceTreatmentsFromUI(),
+      fileData.config.surfaceEnabled,
+      rule
+    );
+      renderSurfaceTreatments(fileData.config);
+    fileData.config.tightest = tightestSelect?.value || 'GB/T 1804-2000 m级';
     fileData.config.roughness = roughnessSelect?.value || 'Ra3.2';
     fileData.config.hasThread = document.querySelector('input[name="has-thread"]:checked')?.value || 'no';
     fileData.config.hasAssembly = document.querySelector('input[name="has-assembly-mark"]:checked')?.value || 'no';
-    fileData.config.scale = parseFloat(scaleSlider?.value || 100);
     fileData.config.quantity = parseInt(qtyInput?.value || 1);
     fileData.config.note = noteTextarea?.value || '';
+
+    console.log('已保存配置:', fileData.config);
 
     // 执行智能验证（仅用于显示提示）
     validateFileConfiguration(fileData);
@@ -862,14 +1391,30 @@
       errors.push(`❌ 文件"${fileName}"是STL格式，系统仅支持STP/STEP格式文件。STL文件无法转换为STEP文件，请重新导出为STP/STEP格式`);
     }
 
-    // 当选择有螺纹/装配标记时，必须有对应2D
+    // 当选择有螺纹/装配关系时，必须有对应2D
     if (fileData && fileData.config) {
       const need2D = fileData.config.hasThread === 'yes' || fileData.config.hasAssembly === 'yes';
+      const rule = getSurfaceRule(fileData.config.material, fileData.config.materialCategory);
+      const surfaceTexts = normalizeSurfaceTreatments(fileData.config.surfaceTreatments, fileData.config.surfaceEnabled !== false, rule);
+      const hasUV = (fileData.config.surfaceEnabled !== false) && surfaceTexts.some(t => t.process === 'UV打印');
       if (need2D) {
         const has2D = hasCorresponding2DFile(fileManager.currentFileId);
         if (!has2D) {
-          const reason = fileData.config.hasThread === 'yes' ? '螺纹' : (fileData.config.hasAssembly === 'yes' ? '装配标记' : '特殊要求');
+          const reason = fileData.config.hasThread === 'yes' ? '螺纹' : (fileData.config.hasAssembly === 'yes' ? '装配关系' : '特殊要求');
           errors.push(`❌ 文件"${fileData.file.name}"已选择有${reason}，但缺少对应的2D图纸（DWG/DXF/PDF）`);
+        }
+      }
+      const hasLaserMarking = (fileData.config.surfaceEnabled !== false) && surfaceTexts.some(t => t.process === '激光打标');
+      if (hasUV) {
+        const has2D = hasCorresponding2DFile(fileManager.currentFileId);
+        if (!has2D) {
+          errors.push(`❌ 文件"${fileData.file.name}"选择了UV打印，但缺少对应的2D图纸（DWG/DXF/PDF）。`);
+        }
+      }
+      if (hasLaserMarking) {
+        const has2D = hasCorresponding2DFile(fileManager.currentFileId);
+        if (!has2D) {
+          errors.push(`❌ 文件"${fileData.file.name}"选择了激光打标，但缺少对应的2D图纸（DWG/DXF/PDF）。`);
         }
       }
     }
@@ -981,14 +1526,25 @@
       radio.checked = radio.value === config.unit;
     });
 
-    // 更新其他参数
-    if (materialSelect) materialSelect.value = config.material;
-    if (finishSelect) finishSelect.value = config.finish;
-    if (precisionSelect) precisionSelect.value = config.precision;
-    if (toleranceSelect) toleranceSelect.value = config.tolerance;
+    // 更新材料选择（先类别再类型）
+    const resolvedCategory = config.materialCategory || getCategoryForMaterial(config.material) || materialCategorySelect?.value || DEFAULT_MATERIAL_CATEGORY;
+    if (materialCategorySelect) {
+      materialCategorySelect.value = resolvedCategory;
+    }
+    const ensuredType = refreshMaterialTypeOptions(resolvedCategory, config.material || getDefaultMaterialType(resolvedCategory));
+    if (materialSelect && ensuredType) materialSelect.value = ensuredType;
+    renderSurfaceTreatments(config);
+    if (surfaceToggleYes && surfaceToggleNo) {
+      const enabled = config.surfaceEnabled !== false;
+      surfaceToggleYes.checked = enabled;
+      surfaceToggleNo.checked = !enabled;
+      if (surfaceListContainer) surfaceListContainer.style.display = enabled ? 'block' : 'none';
+      // addSurfaceBtn 可能不存在，使用可选链或检查
+      const addSurfaceBtn = document.getElementById('add-surface-btn') || document.querySelector('.add-surface-btn');
+      if (addSurfaceBtn) addSurfaceBtn.style.display = enabled ? 'inline-block' : 'none';
+    }
+    if (tightestSelect) tightestSelect.value = config.tightest || 'GB/T 1804-2000 m级';
     if (roughnessSelect) roughnessSelect.value = config.roughness;
-    if (scaleSlider) scaleSlider.value = config.scale;
-    if (scaleValue) scaleValue.textContent = `${config.scale}%`;
     if (qtyInput) qtyInput.value = config.quantity;
     if (noteTextarea) noteTextarea.value = config.note;
 
@@ -1012,10 +1568,9 @@
     const fileData = fileManager.files.get(fileManager.currentFileId);
     if (!fileData || !fileData.dimensions) return;
 
-    const scale = (fileData.config.scale || 100) / 100;
-    const width = (fileData.dimensions.width * scale).toFixed(2);
-    const height = (fileData.dimensions.height * scale).toFixed(2);
-    const depth = (fileData.dimensions.depth * scale).toFixed(2);
+    const width = (fileData.dimensions.width).toFixed(2);
+    const height = (fileData.dimensions.height).toFixed(2);
+    const depth = (fileData.dimensions.depth).toFixed(2);
 
     dimensionsValue.textContent = `${width} x ${height} x ${depth} 毫米`;
     dimensionsDisplay.style.display = 'block';
@@ -1124,135 +1679,206 @@
     }
   }
 
-  // 提交到草稿订单（第一步：立即询价）
+  // 提交到草稿订单（支持 3D + 2D 多文件，每个3D文件创建独立订单）
   async function submitToDraftOrder() {
-    console.log('📝 开始创建草稿订单...');
-    
-    // 获取客户信息
+    console.log('📝 开始创建草稿订单（每个3D文件独立订单）...');
+
+    const API_BASE = (window.QUOTES_API_BASE || 'https://shopify-13s4.vercel.app/api').replace(/\/$/, '');
+
+    // 1. 获取客户信息
     const customerInfo = await getCustomerInfo();
     console.log('客户信息:', customerInfo);
-    
-    // 准备线上项目（Line Items）
-    const lineItems = [];
-    
-    // 处理每个选中的文件
-    for (const fileId of selectedFileIds) {
-      const fileData = fileManager.files.get(fileId);
-      if (!fileData) continue;
-      
-      console.log('处理文件:', fileData.file.name);
-      
-      // 获取文件配置
-      const config = fileData.config || {};
-      
-      // 上传文件到本地存储
-      let realFileId = null;
-      let fileUrl = null;
-      try {
-        if (window.fileStorageManager) {
-          realFileId = `file_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-          await window.fileStorageManager.uploadFile(fileData.file, realFileId);
-          console.log('✅ 文件上传成功，ID:', realFileId);
-        } else {
-          console.warn('⚠️ 文件存储管理器未加载，使用虚拟文件ID');
-          realFileId = `file_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-        }
-        // 新增：获取每个文件的Base64数据
-        fileUrl = await getFileBase64(fileData.file);
-      } catch (uploadError) {
-        console.error('❌ 文件上传失败:', uploadError);
-        realFileId = `file_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+    if (!customerInfo || !customerInfo.email || !customerInfo.name) {
+      throw new Error('客户信息不完整，请确保已正确登录或输入客户信息');
+    }
+
+    // 2. 先保存当前文件的配置（如果正在编辑）
+    if (fileManager.currentFileId) {
+      updateCurrentFileParameters();
+    }
+
+    // 3. 辅助：上传单个文件到后端 /api/store-file-real，返回 { fileId, shopifyFileId, shopifyFileUrl, originalFileSize }
+    async function uploadToShopifyFiles(file) {
+      console.log('📤 上传文件到 /api/store-file-real:', file.name, file.type, file.size);
+      const readerResult = await getFileBase64(file); // 现有函数，返回 data:URL
+
+      const resp = await fetch(`${API_BASE}/store-file-real`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fileData: readerResult,
+          fileName: file.name,
+          fileType: file.type || 'application/octet-stream',
+        }),
+      });
+
+      if (!resp.ok) {
+        const text = await resp.text();
+        console.error('❌ 上传到 store-file-real 失败:', resp.status, text);
+        throw new Error(`上传文件失败 (${resp.status})`);
       }
-      
-      // 创建线上项目（使用虚拟产品）
+
+      const json = await resp.json();
+      console.log('✅ store-file-real 返回:', json);
+      return {
+        fileId: json.fileId,
+        shopifyFileId: json.shopifyFileId,
+        shopifyFileUrl: json.shopifyFileUrl,
+        originalFileSize: json.originalFileSize,
+      };
+    }
+
+    // 4. 为每个 3D 文件创建独立的订单
+    const draftOrderIds = [];
+    const selected3DFileIds = Array.from(selectedFileIds).filter(id => {
+      const fileData = fileManager.files.get(id);
+      return fileData && is3DFile(fileData.file.name);
+    });
+
+    for (const fileId of selected3DFileIds) {
+      const fileData = fileManager.files.get(fileId);
+      if (!fileData || !is3DFile(fileData.file.name)) continue;
+
+      console.log('📦 为 3D 文件创建独立订单:', fileData.file.name);
+
+      const config = fileData.config || {};
+      const rule = getSurfaceRule(config.material, config.materialCategory);
+      const surfaceText = stringifySurfaceTreatments(
+        normalizeSurfaceTreatments(config.surfaceTreatments, config.surfaceEnabled !== false, rule),
+        config.surfaceEnabled !== false
+      );
+
+      // 4.1 上传 3D 文件到 Shopify Files
+      let threeDMeta;
+      try {
+        threeDMeta = await uploadToShopifyFiles(fileData.file);
+      } catch (e) {
+        console.error('❌ 3D 文件上传失败，文件名:', fileData.file.name, e);
+        throw e;
+      }
+
+      // 4.2 为该 3D 文件及其对应 2D 文件生成 lineItems
+      const lineItems = [];
+
+      // 4.2.1 为 3D 文件创建 lineItem
       lineItems.push({
         title: fileData.file.name,
-        quantity: parseInt(config.quantity || 1),
-        price: 0, // 初始价格为0，等待报价
+        quantity: parseInt(config.quantity || 1, 10) || 1,
+        price: 0,
         requires_shipping: false,
         customAttributes: [
           { key: 'Order Type', value: '3D Model Quote' },
+          { key: '文件类型', value: '3D' },
           { key: '客户姓名', value: customerInfo.name },
           { key: '客户邮箱', value: customerInfo.email },
           { key: '文件大小', value: (fileData.file.size / 1024 / 1024).toFixed(2) + ' MB' },
           { key: '材料', value: config.material || '未指定' },
-          { key: '颜色与表面', value: config.finish || '自然色' },
-          { key: '精度等级', value: config.precision || '标准 (±0.1mm)' },
-          { key: '公差标准', value: config.tolerance || 'GB/T 1804-2000 m级' },
+          { key: '材料大类', value: config.materialCategory || getCategoryForMaterial(config.material) || '未指定' },
+          { key: '表面处理', value: surfaceText || '未指定' },
+          { key: '最严公差', value: config.tightest || 'GB/T 1804-2000 m级' },
           { key: '表面粗糙度', value: config.roughness || 'Ra3.2' },
           { key: '是否有螺纹', value: config.hasThread || 'no' },
-          { key: '是否有装配标记', value: config.hasAssembly || 'no' },
-          { key: '缩放比例', value: String(config.scale || 100) },
+          { key: '是否有装配关系', value: config.hasAssembly || 'no' },
           { key: '备注', value: config.note || '' },
           { key: 'Quote Status', value: 'Pending' },
-          { key: '文件ID', value: realFileId },
-           { key: '文件URL', value: fileUrl || '' }, // 新增：每个文件都带自己的fileUrl
+          { key: '文件ID', value: threeDMeta.fileId },
+          { key: 'Shopify文件ID', value: threeDMeta.shopifyFileId },
+          { key: 'Shopify文件URL', value: threeDMeta.shopifyFileUrl },
+          { key: '原始文件大小', value: String(threeDMeta.originalFileSize || fileData.file.size) },
           { key: '_uuid', value: Date.now() + '-' + Math.random().toString(36).substr(2, 9) }
-        ]
+        ],
       });
+
+      // 4.2.2 查找对应的 2D 图纸，分别上传并创建 2D lineItem
+      const twoDFiles = getCorresponding2DFiles(fileId) || [];
+      console.log(`3D 文件 ${fileData.file.name} 对应的 2D 文件:`, twoDFiles.map(f => f.name));
+
+      for (const twoD of twoDFiles) {
+        const twoDData = fileManager.files.get(twoD.id);
+        if (!twoDData || !twoDData.file) continue;
+
+        let twoDMeta;
+        try {
+          twoDMeta = await uploadToShopifyFiles(twoDData.file);
+        } catch (e) {
+          console.error('❌ 2D 文件上传失败，文件名:', twoDData.file.name, e);
+          continue; // 不阻断整个订单
+        }
+
+        lineItems.push({
+          title: twoDData.file.name,
+          quantity: 1,
+          price: 0,
+          requires_shipping: false,
+          customAttributes: [
+            { key: 'Order Type', value: '2D Drawing' },
+            { key: '文件类型', value: '2D' },
+            { key: '关联3D文件', value: fileData.file.name },
+            { key: '客户姓名', value: customerInfo.name },
+            { key: '客户邮箱', value: customerInfo.email },
+            { key: '文件大小', value: (twoDData.file.size / 1024 / 1024).toFixed(2) + ' MB' },
+            { key: '备注', value: config.note || '' },
+            { key: '文件ID', value: twoDMeta.fileId },
+            { key: 'Shopify文件ID', value: twoDMeta.shopifyFileId },
+            { key: 'Shopify文件URL', value: twoDMeta.shopifyFileUrl },
+            { key: '原始文件大小', value: String(twoDMeta.originalFileSize || twoDData.file.size) },
+            { key: '_uuid', value: Date.now() + '-' + Math.random().toString(36).substr(2, 9) }
+          ],
+        });
+      }
+
+      console.log(`为 ${fileData.file.name} 创建订单，lineItems 数量:`, lineItems.length);
+
+      // 4.3 为该 3D 文件创建独立的草稿订单
+      const requestBody = {
+        customerName: customerInfo.name,
+        customerEmail: customerInfo.email,
+        fileName: fileData.file.name,
+        lineItems,
+        fileUrl: null, // 文件都走 store-file-real，不再用单个 fileUrl
+      };
+
+      try {
+        const response = await fetch(`${API_BASE}/submit-quote-real`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+          },
+          body: JSON.stringify(requestBody),
+        });
+
+        console.log(`submit-quote-real 响应状态 (${fileData.file.name}):`, response.status);
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error(`❌ 创建草稿订单失败 (${fileData.file.name}):`, response.status, errorText);
+          throw new Error(`创建草稿订单失败 (${fileData.file.name}): ${response.status} - ${errorText}`);
+        }
+
+        const result = await response.json();
+        console.log(`✅ 草稿订单创建成功 (${fileData.file.name}):`, result);
+
+        if (result.draftOrderId) {
+          draftOrderIds.push(result.draftOrderId);
+        } else {
+          console.warn(`⚠️ API 返回结果中没有 draftOrderId (${fileData.file.name}):`, result);
+        }
+      } catch (error) {
+        console.error(`❌ 创建订单失败 (${fileData.file.name}):`, error);
+        // 继续处理下一个文件，不中断整个流程
+        continue;
+      }
     }
-    
-    console.log('准备创建草稿订单，线上项目:', lineItems);
-    
-    // 调用Vercel API创建草稿订单
-    const API_BASE = 'https://shopify-13s4.vercel.app/api';
-    
-    // 获取文件数据
-    const fileUrl = lineItems.length > 0 ? await getFirstFileDataUrl() : null;
-    console.log('文件数据长度:', fileUrl ? fileUrl.length : 0);
-    
-    // 获取第一个文件的名称
-    const firstFileId = Array.from(selectedFileIds)[0];
-    const firstFileName = firstFileId ? fileManager.files.get(firstFileId)?.file?.name : null;
-    
-    // 验证客户信息
-    if (!customerInfo || !customerInfo.email || !customerInfo.name) {
-      console.error('❌ 客户信息不完整:', customerInfo);
-      throw new Error('客户信息不完整，请确保已正确登录或输入客户信息');
+
+    if (draftOrderIds.length === 0) {
+      throw new Error('没有成功创建任何草稿订单');
     }
+
+    console.log(`✅ 成功创建 ${draftOrderIds.length} 个独立订单:`, draftOrderIds);
     
-    const requestBody = {
-      customerName: customerInfo.name,
-      customerEmail: customerInfo.email,
-      fileName: firstFileName || 'model.stl',
-      lineItems: lineItems,
-      //fileUrl: fileUrl
-    };
-    
-    console.log('📤 请求体准备完成:', {
-      customerName: requestBody.customerName,
-      customerEmail: requestBody.customerEmail,
-      fileName: requestBody.fileName,
-      lineItemsCount: requestBody.lineItems.length,
-      hasFileData: !!requestBody.fileUrl
-    });
-    
-    const response = await fetch(`${API_BASE}/submit-quote-real`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      },
-      body: JSON.stringify(requestBody)
-    });
-    
-    console.log('API响应状态:', response.status);
-    
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('❌ 创建草稿订单失败:', response.status, errorText);
-      throw new Error(`创建草稿订单失败: ${response.status} - ${errorText}`);
-    }
-    
-    const result = await response.json();
-    console.log('✅ 草稿订单创建成功:', result);
-    
-    if (!result.draftOrderId) {
-      console.error('❌ API返回结果中没有draftOrderId:', result);
-      throw new Error('API返回结果中没有draftOrderId');
-    }
-    
-    return result.draftOrderId;
+    // 返回第一个订单ID（用于跳转）
+    return draftOrderIds[0];
   }
 
   // 提交到购物车（第二步：从草稿订单到购物车）
@@ -1276,6 +1902,11 @@
       // 获取文件配置
       const config = fileData.config || {};
       console.log('文件配置:', config);
+      const rule = getSurfaceRule(config.material, config.materialCategory);
+      const surfaceText = stringifySurfaceTreatments(
+        normalizeSurfaceTreatments(config.surfaceTreatments, config.surfaceEnabled !== false, rule),
+        config.surfaceEnabled !== false
+      );
       
       // 创建购物车项目
       const cartItem = {
@@ -1288,13 +1919,12 @@
           '零件名称': fileData.file.name,
           '文件大小': (fileData.file.size / 1024 / 1024).toFixed(2) + ' MB',
           '材料': config.material || '未指定',
-          '颜色': config.finish || '自然色',
-          '精度': config.precision || '标准 (±0.1mm)',
-          '公差': config.tolerance || 'GB/T 1804-2000 m级',
+          '材料大类': config.materialCategory || getCategoryForMaterial(config.material) || '未指定',
+          '表面处理': surfaceText || '未指定',
+          '最严公差': config.tightest || 'GB/T 1804-2000 m级',
           '粗糙度': config.roughness || 'Ra3.2',
           '螺纹': config.hasThread || 'no',
           '装配': config.hasAssembly || 'no',
-          '缩放': config.scale || 100,
           '备注': config.note || '',
           'Quote Status': 'Pending',
           '_uuid': Date.now() + '-' + Math.random().toString(36).substr(2, 9)
@@ -1371,6 +2001,10 @@
       // 获取文件配置
       const config = fileData.config || {};
       console.log('文件配置:', config);
+      const surfaceText = stringifySurfaceTreatments(
+        normalizeSurfaceTreatments(config.surfaceTreatments, config.surfaceEnabled !== false),
+        config.surfaceEnabled !== false
+      );
       
       // 准备API请求数据
       const requestData = {
@@ -1380,13 +2014,11 @@
         customerName: customerInfo.name,
         quantity: parseInt(config.quantity || 1),
         material: config.material || '未指定',
-        color: config.finish || '自然色',
-        precision: config.precision || '标准 (±0.1mm)',
-        tolerance: config.tolerance || 'GB/T 1804-2000 m级',
+        surfaceTreatment: surfaceText || '待确认',
+        tightest: config.tightest || 'GB/T 1804-2000 m级',
         roughness: config.roughness || 'Ra3.2',
         hasThread: config.hasThread || 'no',
         hasAssembly: config.hasAssembly || 'no',
-        scale: config.scale || 100,
         note: config.note || ''
       };
       
@@ -1628,25 +2260,28 @@
 
     // 更新自定义属性
     const propMaterial = document.getElementById('prop-material');
-    const propFinish = document.getElementById('prop-finish');
-    const propPrecision = document.getElementById('prop-precision');
-    const propTolerance = document.getElementById('prop-tolerance');
+    const propMaterialCategory = document.getElementById('prop-material-category');
+    const propSurface = document.getElementById('prop-surface');
+    const propTightest = document.getElementById('prop-tightest');
     const propRoughness = document.getElementById('prop-roughness');
     const propHasThread = document.getElementById('prop-hasThread');
     const propHasAssembly = document.getElementById('prop-hasAssembly');
-    const propScale = document.getElementById('prop-scale');
     const propNote = document.getElementById('prop-note');
     const propFileName = document.getElementById('prop-fileName');
     const propFileSize = document.getElementById('prop-fileSize');
 
+    const resolvedCategory = currentFileData.config.materialCategory || getCategoryForMaterial(currentFileData.config.material) || '';
+    if (propMaterialCategory) propMaterialCategory.value = resolvedCategory;
     if (propMaterial) propMaterial.value = currentFileData.config.material || '';
-    if (propFinish) propFinish.value = currentFileData.config.finish || '';
-    if (propPrecision) propPrecision.value = currentFileData.config.precision || '';
-    if (propTolerance) propTolerance.value = currentFileData.config.tolerance || '';
+    const rule = getSurfaceRule(currentFileData.config.material, currentFileData.config.materialCategory);
+    if (propSurface) propSurface.value = stringifySurfaceTreatments(
+      normalizeSurfaceTreatments(currentFileData.config.surfaceTreatments, currentFileData.config.surfaceEnabled !== false, rule),
+      currentFileData.config.surfaceEnabled !== false
+    );
+    if (propTightest) propTightest.value = currentFileData.config.tightest || 'GB/T 1804-2000 m级';
     if (propRoughness) propRoughness.value = currentFileData.config.roughness || '';
     if (propHasThread) propHasThread.value = currentFileData.config.hasThread || '';
     if (propHasAssembly) propHasAssembly.value = currentFileData.config.hasAssembly || '';
-    if (propScale) propScale.value = currentFileData.config.scale || 100;
     if (propNote) propNote.value = currentFileData.config.note || '';
     if (propFileName) propFileName.value = currentFileData.file.name;
     if (propFileSize) propFileSize.value = formatFileSize(currentFileData.file.size);
@@ -1692,6 +2327,12 @@
 
   // 添加单个文件到购物车
   async function addFileToCart(fileId, fileData) {
+      const rule = getSurfaceRule(fileData.config.material, fileData.config.materialCategory);
+      const surfaceText = stringifySurfaceTreatments(
+        normalizeSurfaceTreatments(fileData.config.surfaceTreatments, fileData.config.surfaceEnabled !== false, rule),
+        fileData.config.surfaceEnabled !== false
+      );
+
     // 获取或创建变体ID
     let variantId = getDefaultVariantId();
     
@@ -1729,19 +2370,17 @@
     // 其他配置参数（可见）
     formData.append('properties[文件ID]', fileId);
     formData.append('properties[单位]', fileData.config.unit);
+    formData.append('properties[材料大类]', fileData.config.materialCategory || getCategoryForMaterial(fileData.config.material) || '');
     formData.append('properties[材料]', fileData.config.material);
-    formData.append('properties[颜色与表面]', fileData.config.finish);
-    formData.append('properties[精度等级]', fileData.config.precision);
-    formData.append('properties[公差标准]', fileData.config.tolerance);
+    formData.append('properties[表面处理]', surfaceText);
+    formData.append('properties[最严公差]', fileData.config.tightest || 'GB/T 1804-2000 m级');
     formData.append('properties[表面粗糙度]', fileData.config.roughness);
     formData.append('properties[是否有螺纹]', fileData.config.hasThread);
-    formData.append('properties[是否有装配标记]', fileData.config.hasAssembly);
-    formData.append('properties[缩放比例]', fileData.config.scale);
+    formData.append('properties[是否有装配关系]', fileData.config.hasAssembly);
     formData.append('properties[备注]', fileData.config.note);
     
     if (fileData.dimensions) {
-      const scale = fileData.config.scale / 100;
-      const dimensions = `${(fileData.dimensions.width * scale).toFixed(2)} x ${(fileData.dimensions.height * scale).toFixed(2)} x ${(fileData.dimensions.depth * scale).toFixed(2)} mm`;
+      const dimensions = `${(fileData.dimensions.width).toFixed(2)} x ${(fileData.dimensions.height).toFixed(2)} x ${(fileData.dimensions.depth).toFixed(2)} mm`;
       formData.append('properties[尺寸]', dimensions);
     }
     
@@ -2875,7 +3514,7 @@
       if (!is3DFile(fd.file.name)) { continue; }
       const need2D = fd.config && (fd.config.hasThread === 'yes' || fd.config.hasAssembly === 'yes');
       if (need2D && !hasCorresponding2DFile(id)) {
-        const reason = fd.config.hasThread === 'yes' ? '螺纹' : (fd.config.hasAssembly === 'yes' ? '装配标记' : '特殊要求');
+        const reason = fd.config.hasThread === 'yes' ? '螺纹' : (fd.config.hasAssembly === 'yes' ? '装配关系' : '特殊要求');
         errors.push(`❌ 文件"${fd.file.name}"已选择有${reason}，但缺少对应的2D图纸（DWG/DXF/PDF）`);
       }
     }
@@ -2939,7 +3578,7 @@
       div.innerHTML = `
         <div class="quote-left">
           <div class="quote-name">${fd.file.name}</div>
-          <div class="quote-meta">数量: ${fd.config.quantity || 1} ｜ 材料: ${fd.config.material || ''} ｜ 精度: ${fd.config.precision || ''}</div>
+          <div class="quote-meta">数量: ${fd.config.quantity || 1} ｜ 材料: ${fd.config.material || ''} ｜ 最严公差: ${fd.config.tightest || ''}</div>
         </div>
         <div class="quote-status">报价中</div>
       `;
@@ -2975,9 +3614,8 @@
         uploadTime: new Date().toLocaleString('zh-CN'),
         quantity: 1,
         material: '待确认',
-        precision: '待确认',
-        finish: '待确认',
-        scale: 100,
+        tightest: '待确认',
+        surfaceTreatment: '待确认',
         note: '客户询价请求'
       };
 

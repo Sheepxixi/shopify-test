@@ -592,7 +592,7 @@
 
 <script>
   // 管理员白名单（如需新增，追加邮箱即可）
-  const ADMIN_EMAILS = ['issac.yu@sainstore.com','jonathan.wang@sainstore.com'];
+  const ADMIN_EMAILS = ['jonathan.wang@sainstore.com', 'jonthan.wang@gmail.com', 'issac.yu@sainstore.com'];
   const customerEl = document.getElementById('customer-email');
   const customerEmail = (customerEl?.dataset.email || '').trim().toLowerCase();
   const customerTags = (customerEl?.dataset.tags || '').split(',').map(t => t.trim());
@@ -807,31 +807,70 @@
           </div>
           <div>
             <div><strong>商品:</strong> ${order.lineItems?.[0]?.title || '未指定'}</div>
+            <div><strong>数量:</strong> ${order.lineItems?.[0]?.quantity || 1}</div>
             <div><strong>价格:</strong> $${order.totalPrice || '0.00'}</div>
           </div>
         </div>
         ${order.lineItems?.[0]?.customAttributes ? `
         <div class="order-params">
-          ${order.lineItems[0].customAttributes.map(attr => {
-            const importantParams = [
-              '材料', '颜色', '精度', '表面粗糙度', '精度等级', '公差标准', '颜色与表面',
-              '是否有螺纹', '是否有装配标记', '缩放比例'
+          ${(() => {
+            const customAttributes = order.lineItems[0].customAttributes;
+            const params = [];
+            
+            // 按客户上传界面的顺序显示参数
+            const paramOrder = [
+              { key: '材料大类', label: '材料类别' },
+              { key: '材料', label: '材料类型' },
+              { key: '表面处理', label: '表面处理' },
+              { key: '最严公差', label: '最严公差' },
+              { key: '表面粗糙度', label: '表面粗糙度' },
+              { key: '是否有螺纹', label: '是否有螺纹' },
+              { key: '是否有装配关系', label: '是否有装配关系' }
             ];
             
-            if (importantParams.includes(attr.key)) {
-              let displayValue = attr.value || '未指定';
-              
-              // 特殊处理某些字段的显示
-              if (attr.key === '是否有螺纹' || attr.key === '是否有装配标记') {
-                displayValue = attr.value === 'yes' ? '是' : '否';
-              } else if (attr.key === '缩放比例') {
-                displayValue = attr.value ? attr.value + '%' : '未指定';
+            // 优先显示新字段
+            paramOrder.forEach(config => {
+              const attr = customAttributes.find(a => a.key === config.key);
+              if (attr && attr.value && attr.value !== '未指定' && attr.value !== '未提供') {
+                let displayValue = attr.value;
+                if (config.key === '是否有螺纹' || config.key === '是否有装配关系') {
+                  displayValue = (attr.value === 'yes' || attr.value === '是') ? '是' : '否';
+                }
+                params.push(`<div class="param-item"><strong>${config.label}:</strong> ${displayValue}</div>`);
               }
+            });
+            
+            // 兼容旧字段（如果新字段不存在）
+            const legacyParams = ['颜色', '精度', '精度等级', '公差标准', '颜色与表面', '是否有装配标记', '缩放比例'];
+            legacyParams.forEach(key => {
+              const hasNewField = paramOrder.some(config => {
+                const mapping = {
+                  '颜色': '材料',
+                  '精度': '最严公差',
+                  '精度等级': '最严公差',
+                  '公差标准': '最严公差',
+                  '颜色与表面': '表面处理',
+                  '是否有装配标记': '是否有装配关系'
+                };
+                return mapping[key] === config.key;
+              });
               
-              return `<div class="param-item"><strong>${attr.key}:</strong> ${displayValue}</div>`;
-            }
-            return '';
-          }).filter(item => item).join('')}
+              if (!hasNewField) {
+                const attr = customAttributes.find(a => a.key === key);
+                if (attr && attr.value && attr.value !== '未指定' && attr.value !== '未提供') {
+                  let displayValue = attr.value;
+                  if (key === '是否有装配标记') {
+                    displayValue = (attr.value === 'yes' || attr.value === '是') ? '是' : '否';
+                  } else if (key === '缩放比例') {
+                    displayValue = attr.value.includes('%') ? attr.value : attr.value + '%';
+                  }
+                  params.push(`<div class="param-item"><strong>${key}:</strong> ${displayValue}</div>`);
+                }
+              }
+            });
+            
+            return params.join('');
+          })()}
         </div>
         ` : ''}
         <div class="order-actions">
@@ -989,59 +1028,118 @@
     }
   }
 
-  // 下载订单文件（优先使用 Shopify 文件 URL / ID）
+  // 下载订单所有文件（3D + 2D，优先使用 Shopify 文件 URL / ID）
   async function downloadOrderFile(orderId) {
     try {
-      console.log('开始下载文件，订单ID:', orderId);
+      console.log('开始下载订单所有文件，订单ID:', orderId);
       
       const order = currentOrders.find(o => o.id === orderId);
       if (!order) {
         alert('未找到订单信息');
         return;
       }
-
       if (!order.lineItems || order.lineItems.length === 0) {
         alert('订单中没有商品信息');
         return;
       }
 
-      const fileName = order.lineItems?.[0]?.title || '未知文件';
-      const fileId = order.fileId;
-      const fileData = order.fileData;
-      const invoiceUrl = order.invoiceUrl;
-      const shopifyFileUrl = order.lineItems?.[0]?.customAttributes?.find(attr => attr.key === 'Shopify文件URL')?.value;
-      const shopifyFileId = order.lineItems?.[0]?.customAttributes?.find(attr => attr.key === 'Shopify文件ID')?.value;
-      
-      console.log('订单文件信息:', { 
-        fileName, 
-        fileId, 
-        fileData: fileData ? '有数据' : '无数据',
-        invoiceUrl,
-        shopifyFileUrl,
-        shopifyFileId
-      });
+      for (const item of order.lineItems) {
+        const attrs = item.customAttributes || [];
+        const fileIdAttr    = attrs.find(a => a.key === '文件ID');
+        const fileNameAttr  = attrs.find(a => a.key === '文件') || attrs.find(a => a.key === '文件名');
+        const shopifyFileUrlAttr = attrs.find(a => a.key === 'Shopify文件URL');
+        const shopifyFileIdAttr  = attrs.find(a => a.key === 'Shopify文件ID');
+        const fileTypeAttr   = attrs.find(a => a.key === '文件类型');
 
-      // 1) 优先使用 Shopify 文件 URL
-      if (shopifyFileUrl && (shopifyFileUrl.startsWith('http://') || shopifyFileUrl.startsWith('https://'))) {
-        const link = document.createElement('a');
-        link.href = shopifyFileUrl;
-        link.download = fileName;
-        link.target = '_blank';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        return;
+        const shopifyFileUrl = shopifyFileUrlAttr ? shopifyFileUrlAttr.value : null;
+        const shopifyFileId  = shopifyFileIdAttr ? shopifyFileIdAttr.value : null;
+
+        let fileName = (fileNameAttr && fileNameAttr.value) || item.title || '未知文件';
+        const fileTypeLabel = fileTypeAttr && fileTypeAttr.value === '2D' ? '2D' : '3D';
+
+        // 检查是否有任何文件标识符
+        if (!fileIdAttr && !shopifyFileUrl && !shopifyFileId) {
+          console.log('该行无文件信息，跳过:', fileName, 'customAttributes:', attrs);
+          continue;
+        }
+
+        // 在文件名上追加 _3D / _2D 标记
+        const dotIndex = fileName.lastIndexOf('.');
+        if (dotIndex > 0) {
+          fileName = fileName.slice(0, dotIndex) + `_${fileTypeLabel}` + fileName.slice(dotIndex);
+        } else {
+          fileName = fileName + `_${fileTypeLabel}`;
+        }
+
+        console.log('准备下载行项目文件:', {
+          title: item.title,
+          fileName,
+          fileType: fileTypeLabel,
+          fileId: fileIdAttr ? fileIdAttr.value : null,
+          shopifyFileUrl,
+          shopifyFileId,
+          allAttrs: attrs.map(a => `${a.key}=${a.value?.substring(0, 50)}...`)
+        });
+
+        // 1）优先使用 Shopify 文件ID（最可靠，因为 URL 可能是临时地址）
+        if (shopifyFileId && shopifyFileId.startsWith('gid://')) {
+          const dlUrl = `${API_BASE}/download-file?shopifyFileId=${encodeURIComponent(shopifyFileId)}&fileName=${encodeURIComponent(fileName)}`;
+          console.log('✅ 使用 Shopify 文件ID 下载:', dlUrl);
+          window.open(dlUrl, '_blank');
+          // 添加小延迟，避免浏览器阻止多个弹窗
+          await new Promise(resolve => setTimeout(resolve, 300));
+          continue;
+        }
+
+        // 2）使用 Shopify 文件 URL（仅当不是临时地址时）
+        if (shopifyFileUrl && 
+            shopifyFileUrl.startsWith('https://') && 
+            !shopifyFileUrl.includes('shopify-staged-uploads.storage.googleapis.com')) {
+          console.log('✅ 使用 Shopify 文件 URL 下载:', shopifyFileUrl);
+          const link = document.createElement('a');
+          link.href = shopifyFileUrl;
+          link.download = fileName;
+          link.target = '_blank';
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          await new Promise(resolve => setTimeout(resolve, 300));
+          continue;
+        }
+
+        // 3）最后退回到 fileId -> /api/download-file?id=...
+        if (fileIdAttr && fileIdAttr.value) {
+          const id = fileIdAttr.value;
+          console.log('⚠️ 通过 fileId 走 API 下载（降级方案）:', id);
+          try {
+            const resp = await fetch(`${API_BASE}/download-file?id=${encodeURIComponent(id)}`);
+            if (!resp.ok) {
+              console.warn('通过 fileId 下载失败:', id, '状态:', resp.status);
+              continue;
+            }
+            const blob = await resp.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = url;
+            a.download = fileName;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            a.remove();
+            console.log('✅ API 文件下载完成:', fileName);
+            await new Promise(resolve => setTimeout(resolve, 300));
+            continue;
+          } catch (err) {
+            console.error('❌ fileId 下载异常:', err);
+            continue;
+          }
+        }
+
+        console.warn('⚠️ 无法下载文件，缺少有效标识符:', fileName);
       }
 
-      // 2) 有 Shopify 文件ID则调用后端下载
-      if (shopifyFileId) {
-        const dlUrl = `${API_BASE}/download-file?shopifyFileId=${encodeURIComponent(shopifyFileId)}&fileName=${encodeURIComponent(fileName)}`;
-        window.open(dlUrl, '_blank');
-        return;
-      }
-
-      // 3) 兼容 Base64 或占位 ID
-      await downloadFile(fileData || fileId || invoiceUrl, fileName);
+      console.log('订单所有文件下载流程结束');
     } catch (error) {
       console.error('下载文件失败:', error);
       alert('下载文件失败: ' + error.message);
@@ -1152,37 +1250,84 @@
         justify-content: center;
       `;
       
-      // 构建参数信息
+      // 构建参数信息（与客户上传界面保持一致）
       let paramsHtml = '';
-      const paramKeys = [
-        '材料', 
+      
+      // 定义参数显示顺序和标签映射（与客户上传界面一致）
+      const paramConfig = [
+        { key: '材料大类', label: '材料类别' },
+        { key: '材料', label: '材料类型' },
+        { key: '表面处理', label: '表面处理' },
+        { key: '最严公差', label: '最严公差' },
+        { key: '表面粗糙度', label: '表面粗糙度' },
+        { key: '是否有螺纹', label: '是否有螺纹' },
+        { key: '是否有装配关系', label: '是否有装配关系' },
+        { key: '数量', label: '数量' },
+        { key: '备注', label: '备注' }
+      ];
+      
+      // 兼容旧数据：也检查可能的旧字段名
+      const legacyParamKeys = [
         '颜色', 
         '精度', 
-        '表面粗糙度', 
         '精度等级', 
         '公差标准', 
         '颜色与表面',
-        '是否有螺纹',
         '是否有装配标记',
-        '缩放比例',
-        '备注'
+        '缩放比例'
       ];
       
-      paramKeys.forEach(key => {
-        const attr = customAttributes.find(a => a.key === key);
-        if (attr && attr.value) {
-          let displayValue = attr.value;
+      // 字段映射：旧字段 -> 新字段/新标签
+      const fieldMapping = {
+        '材料大类': { label: '材料类别', priority: 1 },
+        '材料': { label: '材料类型', priority: 2, legacyKeys: ['颜色'] },
+        '表面处理': { label: '表面处理', priority: 3, legacyKeys: ['颜色与表面'] },
+        '最严公差': { label: '最严公差', priority: 4, legacyKeys: ['精度', '精度等级', '公差标准'] },
+        '表面粗糙度': { label: '表面粗糙度', priority: 5 },
+        '是否有螺纹': { label: '是否有螺纹', priority: 6 },
+        '是否有装配关系': { label: '是否有装配关系', priority: 7, legacyKeys: ['是否有装配标记'] },
+        '数量': { label: '数量', priority: 8 },
+        '备注': { label: '备注', priority: 9 }
+      };
+      
+      // 按优先级排序显示
+      const sortedFields = Object.entries(fieldMapping).sort((a, b) => a[1].priority - b[1].priority);
+      
+      sortedFields.forEach(([newKey, config]) => {
+        // 先查找新字段
+        let attr = customAttributes.find(a => a.key === newKey);
+        let displayValue = null;
+        
+        // 如果新字段不存在，查找旧字段
+        if (!attr && config.legacyKeys) {
+          for (const legacyKey of config.legacyKeys) {
+            attr = customAttributes.find(a => a.key === legacyKey);
+            if (attr) break;
+          }
+        }
+        
+        // 如果找到字段，处理显示值
+        if (attr && attr.value && attr.value !== '未指定' && attr.value !== '未提供') {
+          displayValue = attr.value;
           
-          // 特殊处理某些字段的显示
-          if (key === '是否有螺纹' || key === '是否有装配标记') {
-            displayValue = attr.value === 'yes' ? '是' : '否';
-          } else if (key === '缩放比例') {
-            displayValue = attr.value + '%';
+          // 特殊处理布尔值字段
+          if (newKey === '是否有螺纹' || newKey === '是否有装配关系') {
+            displayValue = (attr.value === 'yes' || attr.value === '是') ? '是' : '否';
           }
           
-          paramsHtml += `<p><strong>${key}:</strong> ${displayValue}</p>`;
+          // 显示参数
+          paramsHtml += `<p><strong>${config.label}:</strong> ${displayValue}</p>`;
         }
       });
+      
+      // 显示缩放比例（如果有）
+      const scaleAttr = customAttributes.find(a => a.key === '缩放比例');
+      if (scaleAttr && scaleAttr.value && scaleAttr.value !== '未指定' && scaleAttr.value !== '未提供') {
+        let displayValue = scaleAttr.value.includes('%') ? scaleAttr.value : scaleAttr.value + '%';
+        paramsHtml += `<p><strong>缩放比例:</strong> ${displayValue}</p>`;
+      }
+      
+      // 数量已在上面通过fieldMapping显示，这里不需要重复显示
       
       modal.innerHTML = `
         <div style="
