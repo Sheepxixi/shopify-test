@@ -61,12 +61,11 @@ function determineMimeType(fileType, fileName) {
  */
 
 export default async function handler(req, res) {
-  // 先设置CORS头
   setCorsHeaders(req, res);
 
-  // 处理OPTIONS预检请求
   if (req.method === 'OPTIONS') {
-    return res.status(204).end();
+    res.status(200).end();
+    return;
   }
 
   if (req.method === 'POST') {

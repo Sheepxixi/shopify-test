@@ -4,15 +4,14 @@
  */
 
 export default async function handler(req, res) {
-  // 设置CORS头 - 允许所有来源（用于测试）
-  const origin = req.headers.origin || '*';
-  res.setHeader('Access-Control-Allow-Origin', origin === 'null' ? '*' : origin);
+  // 设置CORS头
+  res.setHeader('Access-Control-Allow-Origin', 'https://sain-pdc-test.myshopify.com');
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   res.setHeader('Access-Control-Allow-Credentials', 'true');
   
   if (req.method === 'OPTIONS') {
-    return res.status(204).end();
+    return res.status(200).end();
   }
   
   return res.status(200).json({
