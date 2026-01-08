@@ -1237,6 +1237,8 @@
 
       // 显示文件信息
       const modal = document.createElement('div');
+      const modalId = 'preview-modal-' + Date.now();
+      modal.id = modalId;
       modal.style.cssText = `
         position: fixed;
         top: 0;
@@ -1353,7 +1355,7 @@
           ` : ''}
           
           <div style="text-align: right; margin-top: 20px;">
-            <button onclick="this.closest('div').parentElement.remove()" style="
+            <button onclick="document.getElementById('${modalId}').remove()" style="
               background: #007bff;
               color: white;
               border: none;
@@ -1429,8 +1431,6 @@
       align-items: center;
       justify-content: center;
     `;
-    const modalId = 'draft-file-preview-modal-' + Date.now();
-    modal.id = modalId;
     
     modal.innerHTML = `
       <div style="
@@ -1451,14 +1451,13 @@
           border-bottom: 1px solid #e9ecef;
         ">
           <h3 style="margin: 0; color: #333;">客户操作指南</h3>
-          <button onclick="document.getElementById('${modalId}').remove()" style="
-          background: #007bff;
-          color: white;
-          border: none;
-          padding: 8px 16px;
-          border-radius: 4px;
-          cursor: pointer;
-        ">关闭</button>
+          <button onclick="this.closest('.guide-modal').remove()" style="
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #666;
+          ">&times;</button>
         </div>
         <div>${guideContent}</div>
       </div>
