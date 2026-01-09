@@ -67,9 +67,19 @@
 
   <!-- 过滤器 -->
   <div class="filter-section">
-    <button class="filter-btn active" data-status="all">全部</button>
-    <button class="filter-btn" data-status="pending">待报价</button>
-    <button class="filter-btn" data-status="quoted">已报价</button>
+    <div class="filter-group">
+      <span class="filter-label">状态筛选：</span>
+      <button class="filter-btn active" data-status="all">全部</button>
+      <button class="filter-btn" data-status="pending">待报价</button>
+      <button class="filter-btn" data-status="quoted">已报价</button>
+    </div>
+    <div class="filter-group">
+      <span class="filter-label">时间筛选：</span>
+      <button class="time-filter-btn active" data-time="all">全部时间</button>
+      <button class="time-filter-btn" data-time="today">今日</button>
+      <button class="time-filter-btn" data-time="week">一周内</button>
+      <button class="time-filter-btn" data-time="month">一个月内</button>
+    </div>
   </div>
 
   <!-- 订单列表 -->
@@ -309,21 +319,49 @@
 
   .filter-section {
     margin-bottom: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
   }
 
-  .filter-btn {
+  .filter-group {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .filter-label {
+    font-weight: 500;
+    color: #2c3e50;
+    margin-right: 5px;
+  }
+
+  .filter-btn,
+  .time-filter-btn {
     padding: 8px 16px;
-    margin-right: 10px;
     background: #ecf0f1;
     border: none;
     border-radius: 4px;
     cursor: pointer;
     transition: background 0.3s;
+    font-size: 14px;
   }
 
-  .filter-btn.active {
+  .filter-btn.active,
+  .time-filter-btn.active {
     background: #3498db;
     color: white;
+  }
+
+  .filter-btn:hover,
+  .time-filter-btn:hover {
+    background: #d5dbdb;
+  }
+
+  .filter-btn.active:hover,
+  .time-filter-btn.active:hover {
+    background: #2980b9;
   }
 
   .orders-container {
@@ -681,6 +719,7 @@
   // 全局变量
   let currentOrders = [];
   let currentFilter = 'all';
+  let currentTimeFilter = 'all';
   
 
   // 页面加载时初始化
@@ -691,12 +730,22 @@
   
   // 设置事件监听器
   function setupEventListeners() {
-    // 过滤器按钮
+    // 状态过滤器按钮
     document.querySelectorAll('.filter-btn').forEach(btn => {
       btn.addEventListener('click', function() {
         document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
         this.classList.add('active');
         currentFilter = this.dataset.status;
+        renderOrders();
+      });
+    });
+    
+    // 时间过滤器按钮
+    document.querySelectorAll('.time-filter-btn').forEach(btn => {
+      btn.addEventListener('click', function() {
+        document.querySelectorAll('.time-filter-btn').forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+        currentTimeFilter = this.dataset.time;
         renderOrders();
       });
     });
@@ -773,10 +822,40 @@
   function renderOrders() {
     const ordersList = document.getElementById('orders-list');
     
-    // 过滤订单
-    let filteredOrders = currentOrders;
+    // 先按时间倒序排序（最新的在最上面）
+    let sortedOrders = [...currentOrders].sort((a, b) => {
+      const dateA = new Date(a.createdAt).getTime();
+      const dateB = new Date(b.createdAt).getTime();
+      return dateB - dateA; // 倒序：最新的在前
+    });
+    
+    // 状态过滤
+    let filteredOrders = sortedOrders;
     if (currentFilter !== 'all') {
-      filteredOrders = currentOrders.filter(order => order.status === currentFilter);
+      filteredOrders = sortedOrders.filter(order => order.status === currentFilter);
+    }
+    
+    // 时间过滤
+    if (currentTimeFilter !== 'all') {
+      const now = new Date();
+      const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+      
+      filteredOrders = filteredOrders.filter(order => {
+        const orderDate = new Date(order.createdAt);
+        
+        switch (currentTimeFilter) {
+          case 'today':
+            return orderDate >= todayStart;
+          case 'week':
+            return orderDate >= weekAgo;
+          case 'month':
+            return orderDate >= monthAgo;
+          default:
+            return true;
+        }
+      });
     }
     
     if (filteredOrders.length === 0) {
