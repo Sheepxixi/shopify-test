@@ -3228,12 +3228,14 @@
       o3dvWrapper.exportModel('stl');
     });
 
-    controlsContainer.appendChild(resetBtn);
-    controlsContainer.appendChild(measureBtn);
-    controlsContainer.appendChild(annotateBtn);
-    controlsContainer.appendChild(exportBtn);
+    // 隐藏所有查看器控制按钮
+    // controlsContainer.appendChild(resetBtn);
+    // controlsContainer.appendChild(measureBtn);
+    // controlsContainer.appendChild(annotateBtn);
+    // controlsContainer.appendChild(exportBtn);
 
-    viewerContainer.appendChild(controlsContainer);
+    // 不添加控制容器，从而隐藏所有按钮
+    // viewerContainer.appendChild(controlsContainer);
   }
 
   // 创建控制按钮
