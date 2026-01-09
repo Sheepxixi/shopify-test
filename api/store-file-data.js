@@ -36,25 +36,26 @@ export async function storeFileData({ draftOrderId, fileData, fileName }) {
   }
 }
 
-import { setCorsHeaders, HttpStatus } from './_lib.js';
-
 export default async function handler(req, res) {
   // 设置CORS头
-  setCorsHeaders(req, res);
+  res.setHeader('Access-Control-Allow-Origin', 'https://sain-pdc-test.myshopify.com');
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
   if (req.method === 'OPTIONS') {
-    return res.status(HttpStatus.NO_CONTENT).end();
+    return res.status(200).end();
   }
 
   try {
     if (req.method !== 'POST') {
-      return res.status(HttpStatus.METHOD_NOT_ALLOWED).json({ success: false, message: 'Method not allowed' });
+      return res.status(405).json({ success: false, message: 'Method not allowed' });
     }
 
     const { draftOrderId, fileData, fileName } = req.body;
 
     if (!draftOrderId || !fileData || !fileName) {
-      return res.status(HttpStatus.BAD_REQUEST).json({
+      return res.status(400).json({
         success: false,
         message: 'Missing required parameters: draftOrderId, fileData, fileName'
       });
@@ -64,14 +65,14 @@ export default async function handler(req, res) {
     const result = await storeFileData({ draftOrderId, fileData, fileName });
     
     if (result.success) {
-      return res.status(HttpStatus.OK).json(result);
+      return res.status(200).json(result);
     } else {
-      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json(result);
+      return res.status(500).json(result);
     }
 
   } catch (error) {
     console.error('❌ 文件存储失败:', error);
-    return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
+    return res.status(500).json({
       success: false,
       message: '文件存储失败',
       error: error.message,

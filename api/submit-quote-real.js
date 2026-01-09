@@ -33,7 +33,7 @@
  * }
  */
 
-import { setCorsHeaders, draftOrderService, authService, shopifyClient, handleError, createSuccessResponse, HttpStatus, ErrorCodes } from './_lib.js';
+import { setCorsHeaders } from '../utils/cors-config.js';
 
 const API_BASE_URL = process.env.API_BASE_URL || 'https://shopify-v587.vercel.app';
 
@@ -41,11 +41,11 @@ export default async function handler(req, res) {
   setCorsHeaders(req, res);
 
   if (req.method === 'OPTIONS') {
-    return res.status(HttpStatus.NO_CONTENT).end();
+    return res.status(200).end();
   }
 
   if (req.method === 'GET') {
-    return res.status(HttpStatus.OK).json({
+    return res.status(200).json({
       success: true,
       message: 'submit-quote-real API 工作正常',
       method: 'GET',
@@ -54,9 +54,9 @@ export default async function handler(req, res) {
   }
 
   if (req.method !== 'POST') {
-    return res.status(HttpStatus.METHOD_NOT_ALLOWED).json({
+    return res.status(405).json({
       success: false,
-      error: ErrorCodes.METHOD_NOT_ALLOWED,
+      error: 'method_not_allowed',
       message: '仅支持 GET / POST / OPTIONS',
     });
   }
@@ -79,24 +79,103 @@ export default async function handler(req, res) {
     const normalize = (v, d = '') =>
       v === null || typeof v === 'undefined' || v === '' ? d : String(v);
 
-    const email = authService.normalizeEmail(customerEmail);
+    const quoteId = `Q${Date.now()}`;
+    const email = normalize(customerEmail, '').trim().toLowerCase();
     const name = normalize(customerName, '客户');
 
-    // 验证邮箱
-    const emailValidation = authService.validateEmail(email);
-    if (!emailValidation.valid) {
-      return res.status(HttpStatus.BAD_REQUEST).json({
+    if (!email) {
+      return res.status(400).json({
         success: false,
-        error: emailValidation.error,
-        message: emailValidation.message || '客户邮箱不能为空，请确保已登录或填写邮箱',
+        error: 'missing_email',
+        message: '客户邮箱不能为空，请确保已登录或填写邮箱',
       });
     }
 
-    // 检查 Shopify 配置
-    if (!shopifyClient.isConfigured()) {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({
+        success: false,
+        error: 'invalid_email',
+        message: `邮箱格式无效: ${email}`,
+      });
+    }
+
+    const hasFrontendLineItems = Array.isArray(lineItems) && lineItems.length > 0;
+    let finalItems;
+
+    if (hasFrontendLineItems) {
+      console.log('🔗 使用前端传入 lineItems, 数量:', lineItems.length);
+
+      const orderLevelAttrs = [
+        { key: '询价单号', value: quoteId },
+        { key: '文件', value: normalize(fileName || lineItems[0]?.title || 'model.stl') },
+      ];
+
+      finalItems = lineItems.map((item, index) => {
+        const attrs = Array.isArray(item.customAttributes) ? item.customAttributes : [];
+        const attrMap = new Map();
+
+        attrs.forEach((a) => {
+          if (!a || !a.key) return;
+          const v = normalize(a.value, '');
+          if (v.length > 20000) {
+            console.warn('⚠️ 跳过过长自定义字段:', a.key, '长度:', v.length);
+            return;
+          }
+          attrMap.set(a.key, v);
+        });
+
+        if (index === 0) {
+          orderLevelAttrs.forEach((a) => {
+            if (!attrMap.has(a.key)) {
+              attrMap.set(a.key, normalize(a.value, ''));
+            }
+          });
+        }
+
+        return {
+          title: item.title || `3D打印服务 - ${fileName || 'model.stl'}`,
+          quantity: parseInt(item.quantity || quantity || 1, 10) || 1,
+          originalUnitPrice: '0.00',
+          customAttributes: Array.from(attrMap.entries()).map(([key, value]) => ({ key, value })),
+        };
+      });
+    } else {
+      console.log('🔁 使用旧版单文件模式');
+
+      const legacyAttrs = [
+        { key: '材料', value: normalize(material, '未指定') },
+        { key: '颜色', value: normalize(color, '未指定') },
+        { key: '精度', value: normalize(precision, '未指定') },
+        { key: '文件', value: normalize(fileName || 'model.stl') },
+        { key: '询价单号', value: quoteId },
+      ];
+
+      if (fileUrl && typeof fileUrl === 'string') {
+        legacyAttrs.push({ key: '文件URL', value: fileUrl });
+      }
+
+      finalItems = [
+        {
+          title: `3D打印服务 - ${fileName || 'model.stl'}`,
+          quantity: parseInt(quantity || 1, 10) || 1,
+          originalUnitPrice: '0.00',
+          customAttributes: legacyAttrs.map((a) => ({
+            key: a.key,
+            value: normalize(a.value, ''),
+          })),
+        },
+      ];
+    }
+
+    console.log('🧾 最终 lineItems 数量:', finalItems.length);
+
+    const storeDomain = process.env.SHOPIFY_STORE_DOMAIN || process.env.SHOP;
+    const accessToken = process.env.SHOPIFY_ACCESS_TOKEN || process.env.ADMIN_TOKEN;
+
+    if (!storeDomain || !accessToken) {
       console.warn('⚠️ 环境变量未配置，返回模拟数据');
-      const quoteId = `Q${Date.now()}`;
-      return res.status(HttpStatus.OK).json({
+      return res.status(200).json({
         success: true,
         message: '环境变量未配置，返回模拟数据',
         quoteId,
@@ -107,65 +186,96 @@ export default async function handler(req, res) {
       });
     }
 
-    // 处理旧版单文件模式的 lineItems（如果没有提供 lineItems）
-    let processedLineItems = lineItems;
-    if (!Array.isArray(lineItems) || lineItems.length === 0) {
-      console.log('🔁 使用旧版单文件模式');
-      processedLineItems = [{
-        title: `3D打印服务 - ${fileName || 'model.stl'}`,
-        quantity: parseInt(quantity || 1, 10) || 1,
-        customAttributes: [
-          { key: '材料', value: normalize(material, '未指定') },
-          { key: '颜色', value: normalize(color, '未指定') },
-          { key: '精度', value: normalize(precision, '未指定') },
-          { key: '文件', value: normalize(fileName || 'model.stl') },
-          ...(fileUrl ? [{ key: '文件URL', value: fileUrl }] : [])
-        ]
-      }];
-    }
+    const createDraftOrderMutation = `
+      mutation draftOrderCreate($input: DraftOrderInput!) {
+        draftOrderCreate(input: $input) {
+          draftOrder {
+            id
+            name
+            email
+            invoiceUrl
+            totalPrice
+            createdAt
+            lineItems(first: 20) {
+              edges {
+                node {
+                  id
+                  title
+                  quantity
+                  originalUnitPrice
+                  customAttributes { key value }
+                }
+              }
+            }
+          }
+          userErrors { field message }
+        }
+      }
+    `;
 
-    // 创建 Draft Order
-    const result = await draftOrderService.createDraftOrder({
+    const input = {
       email,
-      name,
-      fileName,
-      lineItems: processedLineItems
-    }, {
-      fileUrl
+      taxExempt: true,
+      lineItems: finalItems,
+      note: `询价单号: ${quoteId}\n客户: ${name}\n文件: ${fileName || '未提供'}`,
+    };
+
+    console.log('📡 draftOrderCreate 入参:', JSON.stringify(input, null, 2));
+
+    const resp = await fetch(`https://${storeDomain}/admin/api/2024-01/graphql.json`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Shopify-Access-Token': accessToken,
+      },
+      body: JSON.stringify({ query: createDraftOrderMutation, variables: { input } }),
     });
 
-    // 返回成功响应
-    const response = createSuccessResponse({
-      ...result,
+    const data = await resp.json();
+    console.log('Shopify draftOrderCreate 响应:', JSON.stringify(data, null, 2));
+
+    if (data.errors && data.errors.length) {
+      throw new Error(data.errors[0].message || 'DraftOrder 创建失败');
+    }
+
+    const draftResult = data.data?.draftOrderCreate;
+    if (!draftResult || draftResult.userErrors?.length) {
+      const msg = draftResult?.userErrors?.[0]?.message || 'DraftOrder 创建失败';
+      throw new Error(msg);
+    }
+
+    const draftOrder = draftResult.draftOrder;
+
+    return res.status(200).json({
+      success: true,
       message: '询价提交成功！客服将在 24 小时内为您提供报价。',
+      quoteId,
+      draftOrderId: draftOrder.id,
+      draftOrderName: draftOrder.name,
+      invoiceUrl: draftOrder.invoiceUrl,
+      customerEmail: email,
+      fileName: fileName || '未提供',
       nextSteps: [
         '1. 您将收到询价确认邮件',
         '2. 客服将评估您的需求并报价',
         '3. 报价完成后，您将收到通知',
         '4. 您可以在「我的询价」页面查看进度',
-      ]
+      ],
+      timestamp: new Date().toISOString(),
     });
-
-    return res.status(response.status).json(response.body);
-
   } catch (err) {
-    // 对于创建失败，也返回成功但带有错误信息（保持向后兼容）
-    if (err.message.includes('DraftOrder 创建失败') || err.message.includes('创建')) {
-      console.error('创建 DraftOrder 失败:', err);
-      const quoteId = `Q${Date.now()}`;
-      const draftOrderId = `gid://shopify/DraftOrder/${Date.now()}`;
-      return res.status(HttpStatus.OK).json({
-        success: true,
-        message: '询价提交成功（简化模式），但 DraftOrder 创建失败',
-        quoteId,
-        draftOrderId,
-        customerEmail: req.body?.customerEmail || '',
-        fileName: req.body?.fileName || 'unknown',
-        timestamp: new Date().toISOString(),
-        error: String(err?.message || err),
-      });
-    }
-    
-    return handleError(err, res, { context: '提交询价' });
+    console.error('创建 DraftOrder 失败:', err);
+    const quoteId = `Q${Date.now()}`;
+    const draftOrderId = `gid://shopify/DraftOrder/${Date.now()}`;
+    return res.status(200).json({
+      success: true,
+      message: '询价提交成功（简化模式），但 DraftOrder 创建失败',
+      quoteId,
+      draftOrderId,
+      customerEmail: req.body?.customerEmail || '',
+      fileName: req.body?.fileName || 'unknown',
+      timestamp: new Date().toISOString(),
+      error: String(err?.message || err),
+    });
   }
 }

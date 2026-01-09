@@ -1,4 +1,4 @@
-import { setCorsHeaders, shopifyClient, draftOrderService, handleError, createSuccessResponse, HttpStatus, ErrorCodes } from './_lib.js';
+import { setCorsHeaders } from '../utils/cors-config.js';
 
 /**
  * ═══════════════════════════════════════════════════════════════
@@ -27,25 +27,56 @@ import { setCorsHeaders, shopifyClient, draftOrderService, handleError, createSu
  * }
  */
 
+// 辅助函数：调用 Shopify GraphQL API
+async function shopGql(query, variables) {
+  const storeDomain = process.env.SHOPIFY_STORE_DOMAIN || process.env.SHOP;
+  const accessToken = process.env.SHOPIFY_ACCESS_TOKEN || process.env.ADMIN_TOKEN;
+  
+  if (!storeDomain || !accessToken) {
+    throw new Error('缺少 Shopify 配置');
+  }
+  
+  const endpoint = `https://${storeDomain}/admin/api/2024-01/graphql.json`;
+  const resp = await fetch(endpoint, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Shopify-Access-Token': accessToken,
+    },
+    body: JSON.stringify({ query, variables }),
+  });
+  
+  if (!resp.ok) {
+    throw new Error(`Shopify API 请求失败: ${resp.status}`);
+  }
+  
+  const json = await resp.json();
+  
+  if (json.errors) {
+    console.error('GraphQL 错误:', json.errors);
+    throw new Error(`GraphQL 错误: ${json.errors[0].message}`);
+  }
+  
+  return json;
+}
+
 export default async function handler(req, res) {
   setCorsHeaders(req, res);
 
   if (req.method === 'OPTIONS') {
-    return res.status(HttpStatus.NO_CONTENT).end();
+    return res.status(200).end();
   }
 
   if (req.method !== 'POST') {
-    return res.status(HttpStatus.METHOD_NOT_ALLOWED).json({ error: 'Method not allowed' });
+    return res.status(405).json({ error: 'Method not allowed' });
   }
 
   const { draftOrderId, customMessage } = req.body;
 
   // 验证必填字段
   if (!draftOrderId) {
-    return res.status(HttpStatus.BAD_REQUEST).json({
-      success: false,
-      error: ErrorCodes.MISSING_PARAMETER,
-      message: '缺少必填字段',
+    return res.status(400).json({
+      error: '缺少必填字段',
       required: ['draftOrderId']
     });
   }
@@ -57,22 +88,40 @@ export default async function handler(req, res) {
     // 步骤 1: 查询草稿订单信息
     // ═══════════════════════════════════════════════════════════
     
-    const draftOrder = await draftOrderService.getDraftOrder(draftOrderId, { isAdmin: true });
+    const getDraftOrderQuery = `
+      query($id: ID!) {
+        draftOrder(id: $id) {
+          id
+          name
+          email
+          invoiceUrl
+          totalPrice
+          lineItems(first: 10) {
+            edges {
+              node {
+                id
+                title
+                quantity
+                originalUnitPrice
+              }
+            }
+          }
+        }
+      }
+    `;
     
-    if (!draftOrder) {
-      return res.status(HttpStatus.NOT_FOUND).json({
-        success: false,
-        error: ErrorCodes.NOT_FOUND,
-        message: '未找到草稿订单'
-      });
+    const currentResult = await shopGql(getDraftOrderQuery, {
+      id: draftOrderId
+    });
+    
+    if (!currentResult.data.draftOrder) {
+      return res.status(404).json({ error: '未找到草稿订单' });
     }
     
+    const draftOrder = currentResult.data.draftOrder;
+    
     if (!draftOrder.email) {
-      return res.status(HttpStatus.BAD_REQUEST).json({
-        success: false,
-        error: ErrorCodes.VALIDATION_ERROR,
-        message: '草稿订单没有客户邮箱地址'
-      });
+      return res.status(400).json({ error: '草稿订单没有客户邮箱地址' });
     }
 
     console.log('草稿订单信息:', {
@@ -85,10 +134,28 @@ export default async function handler(req, res) {
     // 步骤 2: 发送发票邮件
     // ═══════════════════════════════════════════════════════════
     
-    const result = await shopifyClient.sendInvoiceEmail(draftOrderId);
+    const sendInvoiceMutation = `
+      mutation draftOrderInvoiceSend($id: ID!) {
+        draftOrderInvoiceSend(id: $id) {
+          draftOrder {
+            id
+            name
+            invoiceUrl
+          }
+          userErrors {
+            field
+            message
+          }
+        }
+      }
+    `;
     
-    if (!result) {
-      throw new Error('发送发票邮件失败');
+    const sendInvoiceResult = await shopGql(sendInvoiceMutation, {
+      id: draftOrderId
+    });
+    
+    if (sendInvoiceResult.data.draftOrderInvoiceSend.userErrors.length > 0) {
+      throw new Error('发送发票邮件失败: ' + sendInvoiceResult.data.draftOrderInvoiceSend.userErrors[0].message);
     }
     
     console.log('发票邮件发送成功');
@@ -97,19 +164,22 @@ export default async function handler(req, res) {
     // 返回结果
     // ═══════════════════════════════════════════════════════════
     
-    const response = createSuccessResponse({
+    return res.json({
+      success: true,
+      message: '发票邮件发送成功',
       draftOrderId: draftOrder.id,
       draftOrderName: draftOrder.name,
       customerEmail: draftOrder.email,
       totalPrice: draftOrder.totalPrice,
-      invoiceUrl: draftOrder.invoiceUrl || result.invoiceUrl,
-      sentAt: new Date().toISOString(),
-      message: '发票邮件发送成功'
+      invoiceUrl: draftOrder.invoiceUrl,
+      sentAt: new Date().toISOString()
     });
-
-    return res.status(response.status).json(response.body);
     
   } catch (error) {
-    return handleError(error, res, { context: '发送发票邮件' });
+    console.error('发送发票邮件失败:', error);
+    return res.status(500).json({
+      error: '发送发票邮件失败',
+      message: error.message
+    });
   }
 }
