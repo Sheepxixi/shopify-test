@@ -9,11 +9,11 @@ class O3DVWrapper {
     this.options = {
       width: 800,
       height: 600,
-      backgroundColor: { r: 255, g: 255, b: 255, a: 255 },
-      defaultColor: { r: 200, g: 200, b: 200 },
-      showEdges: false,
-      edgeColor: { r: 0, g: 0, b: 0 },
-      edgeWidth: 1,
+      backgroundColor: { r: 245, g: 245, b: 245, a: 255 }, // 浅灰色背景
+      defaultColor: { r: 180, g: 180, b: 180 }, // 浅灰色模型
+      showEdges: true, // 默认启用边缘线
+      edgeColor: { r: 50, g: 50, b: 50 }, // 深灰色边缘线
+      edgeWidth: 1.5, // 稍微加粗边缘线
       ...options
     };
     
