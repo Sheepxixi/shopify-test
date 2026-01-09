@@ -710,7 +710,12 @@
     sessionStorage.setItem(SESSION_KEY, 'true');
     sessionStorage.setItem(SESSION_EXPIRY_KEY, expiry.toString());
     showAdminContent();
-    loadOrders();
+    
+    // 确保 DOM 元素已显示后再绑定事件和加载数据
+    setTimeout(() => {
+      setupEventListeners();
+      loadOrders();
+    }, 100);
   });
 
   // API配置
@@ -721,34 +726,44 @@
   let currentFilter = 'all';
   let currentTimeFilter = 'all';
   
-
-  // 页面加载时初始化
-  document.addEventListener('DOMContentLoaded', function() {
-    loadOrders();
-    setupEventListeners();
-  });
-  
   // 设置事件监听器
   function setupEventListeners() {
-    // 状态过滤器按钮
-    document.querySelectorAll('.filter-btn').forEach(btn => {
-      btn.addEventListener('click', function() {
-        document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-        this.classList.add('active');
-        currentFilter = this.dataset.status;
+    console.log('设置事件监听器...');
+    
+    // 使用事件委托，避免重复绑定问题
+    const filterSection = document.querySelector('.filter-section');
+    if (!filterSection) {
+      console.error('未找到过滤器区域');
+      return;
+    }
+    
+    // 移除旧的事件监听器（如果存在）
+    const newFilterSection = filterSection.cloneNode(true);
+    filterSection.parentNode.replaceChild(newFilterSection, filterSection);
+    
+    // 状态过滤器按钮 - 使用事件委托
+    newFilterSection.addEventListener('click', function(e) {
+      if (e.target.classList.contains('filter-btn')) {
+        console.log('点击状态筛选按钮:', e.target.dataset.status);
+        newFilterSection.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+        e.target.classList.add('active');
+        currentFilter = e.target.dataset.status;
+        console.log('当前状态筛选:', currentFilter);
         renderOrders();
-      });
+      }
+      
+      // 时间过滤器按钮
+      if (e.target.classList.contains('time-filter-btn')) {
+        console.log('点击时间筛选按钮:', e.target.dataset.time);
+        newFilterSection.querySelectorAll('.time-filter-btn').forEach(b => b.classList.remove('active'));
+        e.target.classList.add('active');
+        currentTimeFilter = e.target.dataset.time;
+        console.log('当前时间筛选:', currentTimeFilter);
+        renderOrders();
+      }
     });
     
-    // 时间过滤器按钮
-    document.querySelectorAll('.time-filter-btn').forEach(btn => {
-      btn.addEventListener('click', function() {
-        document.querySelectorAll('.time-filter-btn').forEach(b => b.classList.remove('active'));
-        this.classList.add('active');
-        currentTimeFilter = this.dataset.time;
-        renderOrders();
-      });
-    });
+    console.log('事件监听器设置完成');
   }
   
   // 获取订单状态文本
@@ -838,24 +853,48 @@
     // 时间过滤
     if (currentTimeFilter !== 'all') {
       const now = new Date();
-      const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
       const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
       const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
       
+      console.log('时间过滤:', {
+        filter: currentTimeFilter,
+        todayStart: todayStart.toLocaleString('zh-CN'),
+        weekAgo: weekAgo.toLocaleString('zh-CN'),
+        monthAgo: monthAgo.toLocaleString('zh-CN'),
+        totalOrders: filteredOrders.length
+      });
+      
       filteredOrders = filteredOrders.filter(order => {
         const orderDate = new Date(order.createdAt);
+        let match = false;
         
         switch (currentTimeFilter) {
           case 'today':
-            return orderDate >= todayStart;
+            match = orderDate >= todayStart;
+            break;
           case 'week':
-            return orderDate >= weekAgo;
+            match = orderDate >= weekAgo;
+            break;
           case 'month':
-            return orderDate >= monthAgo;
+            match = orderDate >= monthAgo;
+            break;
           default:
-            return true;
+            match = true;
         }
+        
+        if (match) {
+          console.log('订单匹配时间筛选:', {
+            orderId: order.id,
+            orderDate: orderDate.toLocaleString('zh-CN'),
+            filter: currentTimeFilter
+          });
+        }
+        
+        return match;
       });
+      
+      console.log('时间过滤后订单数量:', filteredOrders.length);
     }
     
     if (filteredOrders.length === 0) {
