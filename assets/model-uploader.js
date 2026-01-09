@@ -481,25 +481,21 @@
       renderer.shadowMap.type = THREE.PCFSoftShadowMap;
       viewerContainer.appendChild(renderer.domElement);
 
-      // 添加光源 - 优化光照以获得更好的金属反光效果
-      const ambientLight = new THREE.AmbientLight(0xffffff, 0.6); // 提高环境光，增强整体亮度
+      // 添加光源 - 创建渐变反光效果（一部分反光一部分不反光）
+      // 降低环境光，增强明暗对比
+      const ambientLight = new THREE.AmbientLight(0xffffff, 0.3);
       scene.add(ambientLight);
 
-      // 主光源 - 用于产生主要的高光反射
-      const directionalLight = new THREE.DirectionalLight(0xffffff, 1.2);
-      directionalLight.position.set(10, 10, 5);
+      // 主光源 - 从左上角照射，产生高光反光区域（左上部分）
+      const directionalLight = new THREE.DirectionalLight(0xffffff, 1.5);
+      directionalLight.position.set(-10, 10, 5); // 从左上角照射
       directionalLight.castShadow = true;
       scene.add(directionalLight);
       
-      // 辅助光源 - 从另一侧照亮，增强金属反光
-      const fillLight = new THREE.DirectionalLight(0xffffff, 0.5);
-      fillLight.position.set(-5, 5, -5);
+      // 弱辅助光源 - 从右下角轻微照亮，但强度很低，保持右下部分较暗（不反光）
+      const fillLight = new THREE.DirectionalLight(0xffffff, 0.2);
+      fillLight.position.set(5, -5, -5); // 从右下角轻微照射
       scene.add(fillLight);
-      
-      // 添加点光源，增强局部高光反射效果
-      const pointLight = new THREE.PointLight(0xffffff, 0.8, 100);
-      pointLight.position.set(0, 10, 10);
-      scene.add(pointLight);
 
       // 添加控制器
       const controls = new THREE.OrbitControls(camera, renderer.domElement);
@@ -928,11 +924,31 @@
             depth: box.max.z - box.min.z
           };
 
-          // 创建材质 - 银灰色，带金属反光效果
+          // 创建材质 - 银灰色，带渐变反光效果（一部分反光一部分不反光）
+          // 使用渐变纹理控制roughness，实现不同区域的反光效果
+          const canvas = document.createElement('canvas');
+          canvas.width = 256;
+          canvas.height = 256;
+          const ctx = canvas.getContext('2d');
+          
+          if (ctx) {
+            // 创建从左上（低roughness，高反光）到右下（高roughness，低反光）的渐变
+            const gradient = ctx.createLinearGradient(0, 0, 256, 256);
+            gradient.addColorStop(0, 'rgba(0, 0, 0, 0)'); // 左上：roughness低（0.2），高反光
+            gradient.addColorStop(1, 'rgba(255, 255, 255, 255)'); // 右下：roughness高（0.7），低反光
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, 256, 256);
+          }
+          
+          const roughnessMap = new THREE.CanvasTexture(canvas);
+          roughnessMap.wrapS = THREE.RepeatWrapping;
+          roughnessMap.wrapT = THREE.RepeatWrapping;
+          
           const material = new THREE.MeshStandardMaterial({ 
             color: 0xc8c8d2, // 银灰色，带轻微蓝色调 (RGB: 200, 200, 210)
-            metalness: 0.75, // 增强金属感，产生反光效果
-            roughness: 0.25, // 降低粗糙度，增加表面光泽和反光
+            metalness: 0.8, // 增强金属感
+            roughness: 0.3, // 基础粗糙度
+            roughnessMap: roughnessMap, // 使用渐变纹理控制不同区域的粗糙度
             transparent: false,
             opacity: 1.0
           });
