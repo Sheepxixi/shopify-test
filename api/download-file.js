@@ -2,40 +2,19 @@
 // 用于下载已上传的文件
 const FILE_METAOBJECT_TYPE = 'uploaded_file';
 
-// 本地实现 shopGql，避免跨路由导入在 Vercel 中丢失
-async function shopGql(query, variables) {
-  const storeDomain = process.env.SHOPIFY_STORE_DOMAIN || process.env.SHOP;
-  const accessToken = process.env.SHOPIFY_ACCESS_TOKEN || process.env.ADMIN_TOKEN;
-
-  if (!storeDomain || !accessToken) {
-    return { errors: [{ message: 'Missing SHOPIFY_STORE_DOMAIN or SHOPIFY_ACCESS_TOKEN' }] };
-  }
-
-  const endpoint = `https://${storeDomain}/admin/api/2024-01/graphql.json`;
-  const resp = await fetch(endpoint, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-Shopify-Access-Token': accessToken,
-    },
-    body: JSON.stringify({ query, variables }),
-  });
-
-  const json = await resp.json();
-  return json;
-}
-
 import { setCorsHeaders } from '../utils/cors-config.js';
+import { shopifyClient } from '../utils/shopify-client.js';
+import { HttpStatus, ErrorCodes } from '../utils/error-handler.js';
 
 export default async function handler(req, res) {
   setCorsHeaders(req, res);
   
   if (req.method === 'OPTIONS') {
-    return res.status(204).end();
+    return res.status(HttpStatus.NO_CONTENT).end();
   }
 
   if (req.method !== 'GET') {
-    return res.status(405).json({ error: 'Method not allowed' });
+    return res.status(HttpStatus.METHOD_NOT_ALLOWED).json({ error: 'Method not allowed' });
   }
 
   try {
@@ -62,14 +41,16 @@ export default async function handler(req, res) {
 
     let fileRecord = null;
     try {
-      const handleResult = await shopGql(handleQuery, { handle: id, type: FILE_METAOBJECT_TYPE });
-      fileRecord = handleResult?.data?.metaobjectByHandle || null;
+      if (shopifyClient.isConfigured()) {
+        const handleResult = await shopifyClient.query(handleQuery, { handle: id, type: FILE_METAOBJECT_TYPE });
+        fileRecord = handleResult?.data?.metaobjectByHandle || null;
+      }
     } catch (err) {
       console.warn('按 handle 查询 uploaded_file 失败，尝试列表查询:', err.message);
     }
 
     // 未找到时降级列表查询（最多100条）
-    if (!fileRecord) {
+    if (!fileRecord && shopifyClient.isConfigured()) {
       const listQuery = `
         query($type: String!, $first: Int!) {
           metaobjects(type: $type, first: $first) {
@@ -82,7 +63,7 @@ export default async function handler(req, res) {
         }
       `;
       try {
-        const result = await shopGql(listQuery, { type: FILE_METAOBJECT_TYPE, first: 100 });
+        const result = await shopifyClient.query(listQuery, { type: FILE_METAOBJECT_TYPE, first: 100 });
         if (result?.errors) {
           console.error('GraphQL errors:', result.errors);
         }
@@ -101,16 +82,16 @@ export default async function handler(req, res) {
       if (id.startsWith('file_')) {
         const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>文件不存在</title></head><body>未找到文件：${id}</body></html>`;
         res.setHeader('Content-Type', 'text/html; charset=utf-8');
-        return res.status(404).send(html);
+        return res.status(HttpStatus.NOT_FOUND).send(html);
       }
       if (id === 'placeholder') {
         const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>文件上传失败</title></head><body>文件上传失败，ID：${id}</body></html>`;
         res.setHeader('Content-Type', 'text/html; charset=utf-8');
-        return res.status(404).send(html);
+        return res.status(HttpStatus.NOT_FOUND).send(html);
       }
       const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>文件不存在</title></head><body>文件不存在：${id}</body></html>`;
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
-      return res.status(404).send(html);
+      return res.status(HttpStatus.NOT_FOUND).send(html);
     }
 
     const getField = (key) => {
@@ -136,7 +117,7 @@ export default async function handler(req, res) {
       console.log('文件数据缺失，file_url:', fileUrlCdn);
       const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>文件数据缺失</title><style>body{font-family:Arial,sans-serif;max-width:680px;margin:40px auto;background:#f7f7f7;padding:20px}.card{background:#fff;padding:28px 32px;border-radius:10px;box-shadow:0 3px 16px rgba(0,0,0,.08)}h1{color:#e67e22;font-size:22px;margin:0 0 12px}p{color:#555;line-height:1.7;margin:8px 0}code{background:#f2f2f2;padding:4px 6px;border-radius:4px}</style></head><body><div class="card"><h1>⚠️ 文件数据缺失</h1><p>文件ID：<code>${id}</code></p><p>文件名：<code>${fileName}</code></p><p>此文件的数据未能正确存储。可能的原因：</p><ul><li>文件上传过程中断</li><li>文件过大被截断</li><li>Shopify Files API 存储失败</li></ul><p>建议：请联系客户重新上传文件。</p></div></body></html>`;
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
-      return res.status(500).send(html);
+      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).send(html);
     }
 
     const buffer = Buffer.from(fileData, 'base64');
@@ -145,21 +126,28 @@ export default async function handler(req, res) {
     const encodedFileName = encodeURIComponent(fileName);
     res.setHeader('Content-Disposition', `attachment; filename="${fileName.replace(/[^\x20-\x7E]/g, '_')}"; filename*=UTF-8''${encodedFileName}`);
     res.setHeader('Content-Length', buffer.length);
-    return res.status(200).send(buffer);
+    return res.status(HttpStatus.OK).send(buffer);
 
   } catch (error) {
     console.error('文件下载错误:', error);
-    return res.status(500).json({ 
+    return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ 
       error: '文件下载失败', 
       details: error.message 
     });
   }
-  }
+}
 
 // 处理Shopify文件下载
 async function handleShopifyFileDownload(req, res, shopifyFileId, fileName) {
   try {
     console.log('开始下载Shopify文件:', { shopifyFileId, fileName });
+
+    if (!shopifyClient.isConfigured()) {
+      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
+        error: 'Shopify 配置缺失',
+        message: '请配置 Shopify 环境变量'
+      });
+    }
 
     // 使用 node 查询文件，兼容不同版本 API
     const query = `
@@ -178,15 +166,10 @@ async function handleShopifyFileDownload(req, res, shopifyFileId, fileName) {
       }
     `;
 
-    const result = await shopGql(query, { id: shopifyFileId });
-
-    if (result.errors && result.errors.length > 0) {
-      console.error('Shopify文件查询错误:', result.errors);
-      return res.status(500).json({ error: '文件查询失败', message: result.errors[0].message });
-    }
+    const result = await shopifyClient.query(query, { id: shopifyFileId });
 
     if (!result.data || !result.data.node) {
-      return res.status(404).json({ error: '文件未找到' });
+      return res.status(HttpStatus.NOT_FOUND).json({ error: '文件未找到' });
     }
 
     const file = result.data.node;
@@ -200,7 +183,7 @@ async function handleShopifyFileDownload(req, res, shopifyFileId, fileName) {
     }
 
     if (!fileUrl) {
-      return res.status(404).json({ error: '文件URL不可用' });
+      return res.status(HttpStatus.NOT_FOUND).json({ error: '文件URL不可用' });
     }
 
     console.log('文件URL获取成功:', fileUrl);
@@ -212,7 +195,7 @@ async function handleShopifyFileDownload(req, res, shopifyFileId, fileName) {
 
   } catch (error) {
     console.error('Shopify文件下载失败:', error);
-    return res.status(500).json({
+    return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
       error: '文件下载失败',
       message: error.message
     });

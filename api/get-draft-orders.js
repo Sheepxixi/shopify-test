@@ -1,4 +1,8 @@
 import { setCorsHeaders } from '../utils/cors-config.js';
+import { draftOrderService } from '../services/draft-order-service.js';
+import { authService } from '../utils/auth-service.js';
+import { shopifyClient } from '../utils/shopify-client.js';
+import { handleError, createSuccessResponse, HttpStatus, ErrorCodes } from '../utils/error-handler.js';
 
 /**
  * ═══════════════════════════════════════════════════════════════
@@ -13,23 +17,12 @@ import { setCorsHeaders } from '../utils/cors-config.js';
  * - 提供统计信息
  * 
  * 请求示例：
- * GET /api/get-draft-orders?status=pending
- * GET /api/get-draft-orders?limit=20
+ * GET /api/get-draft-orders?status=pending&limit=20&email=user@example.com&admin=true
  * 
  * 响应示例：
  * {
  *   "success": true,
- *   "draftOrders": [
- *     {
- *       "id": "gid://shopify/DraftOrder/1234567890",
- *       "name": "#D1001",
- *       "email": "customer@example.com",
- *       "status": "pending",
- *       "totalPrice": "99.00",
- *       "createdAt": "2025-10-15T08:00:00Z",
- *       "lineItems": [...]
- *     }
- *   ],
+ *   "draftOrders": [...],
  *   "total": 10,
  *   "pending": 5,
  *   "quoted": 5
@@ -41,27 +34,23 @@ export default async function handler(req, res) {
   setCorsHeaders(req, res);
 
   if (req.method === 'OPTIONS') {
-    res.status(200).end();
-    return;
+    return res.status(HttpStatus.NO_CONTENT).end();
   }
 
   // 只接受GET请求
   if (req.method !== 'GET') {
-    return res.status(405).json({ error: 'Method not allowed' });
+    return res.status(HttpStatus.METHOD_NOT_ALLOWED).json({ error: 'Method not allowed' });
   }
 
   try {
     console.log('开始获取Draft Orders列表...');
 
-    // 检查环境变量 - 支持多种变量名
-    const storeDomain = process.env.SHOPIFY_STORE_DOMAIN || process.env.SHOP;
-    const accessToken = process.env.SHOPIFY_ACCESS_TOKEN || process.env.ADMIN_TOKEN;
-    
-    if (!storeDomain || !accessToken) {
+    // 检查 Shopify 配置
+    if (!shopifyClient.isConfigured()) {
       console.log('环境变量未配置，返回模拟数据');
       
       // 返回模拟数据
-      return res.status(200).json({
+      return res.status(HttpStatus.OK).json({
         success: true,
         message: '环境变量未配置，返回模拟数据',
         draftOrders: [
@@ -104,192 +93,51 @@ export default async function handler(req, res) {
     }
 
     // 获取查询参数
-    const { status, limit = 50, email, admin } = req.query;
+    const { status, limit = 50 } = req.query;
 
-    // 管理员白名单（逗号分隔，环境变量 ADMIN_EMAIL_WHITELIST）
-    const adminWhitelist = (process.env.ADMIN_EMAIL_WHITELIST || 'jonathan.wang@sainstore.com,issac.yu@sainstore.com')
-      .split(',')
-      .map(e => e.trim().toLowerCase())
-      .filter(Boolean);
-    const requesterEmail = (email || '').trim().toLowerCase();
-    const isAdminRequest = ['1', 'true', 'yes'].includes((admin || '').toString().toLowerCase());
+    // 提取认证信息
+    const { email: requesterEmail, isAdmin: isAdminRequest } = authService.extractAuthFromRequest(req);
 
-    console.log('🔐 权限检查:', {
-      requesterEmail,
-      isAdminRequest,
-      adminWhitelist,
-      isInWhitelist: adminWhitelist.includes(requesterEmail)
-    });
-
-    // 认证与授权
-    if (!requesterEmail) {
-      console.warn('❌ 缺少邮箱参数');
-      return res.status(401).json({
+    // 验证邮箱
+    const emailValidation = authService.validateEmail(requesterEmail);
+    if (!emailValidation.valid) {
+      return res.status(HttpStatus.UNAUTHORIZED).json({
         success: false,
-        error: 'missing_email',
-        message: '缺少客户邮箱，无法获取询价单列表'
+        error: emailValidation.error,
+        message: emailValidation.message
       });
     }
-    if (isAdminRequest && !adminWhitelist.includes(requesterEmail)) {
+
+    // 验证管理员权限
+    if (req.query.admin && !isAdminRequest) {
       console.warn('❌ 管理员权限被拒绝:', {
         requesterEmail,
-        adminWhitelist,
-        isInWhitelist: adminWhitelist.includes(requesterEmail)
+        adminWhitelist: authService.parseAdminWhitelist()
       });
-      return res.status(403).json({
+      return res.status(HttpStatus.FORBIDDEN).json({
         success: false,
-        error: 'forbidden',
-        message: `您无权查看全部询价单。当前邮箱: ${requesterEmail}，白名单: ${adminWhitelist.join(', ')}`
+        error: ErrorCodes.FORBIDDEN,
+        message: `您无权查看全部询价单。当前邮箱: ${requesterEmail}`
       });
     }
 
-    // GraphQL查询
-    const query = `
-      query getDraftOrders($first: Int!, $search: String!) {
-        draftOrders(first: $first, query: $search) {
-          edges {
-            node {
-              id
-              name
-              email
-              totalPrice
-              createdAt
-              updatedAt
-              status
-              invoiceUrl
-              lineItems(first: 10) {
-                edges {
-                  node {
-                    id
-                    title
-                    quantity
-                    originalUnitPrice
-                    customAttributes {
-                      key
-                      value
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    `;
-
-    // 调用Shopify Admin API
-    const response = await fetch(`https://${storeDomain}/admin/api/2024-01/graphql.json`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Shopify-Access-Token': accessToken
-      },
-      body: JSON.stringify({
-        query: query,
-        variables: { 
-          first: parseInt(limit), 
-          // 管理端允许查看全部；普通用户按邮箱过滤
-          search: isAdminRequest
-            ? (status && status !== 'all' ? `status:${status}` : '')
-            : `email:"${requesterEmail}"`
-        }
-      })
+    // 获取 Draft Orders 列表
+    const result = await draftOrderService.getDraftOrders({
+      requesterEmail,
+      isAdmin: isAdminRequest,
+      status,
+      limit: parseInt(limit, 10) || 50
     });
 
-    const data = await response.json();
-    console.log('Shopify API响应:', data);
-
-    if (data.errors) {
-      console.error('GraphQL错误:', data.errors);
-      throw new Error(`GraphQL错误: ${data.errors[0].message}`);
-    }
-
-    // 处理响应数据
-    const draftOrders = data.data.draftOrders.edges.map(edge => {
-      const order = edge.node;
-      
-      // 从第一个lineItem的customAttributes中提取文件ID和文件数据
-      let fileId = null;
-      let fileData = null;
-      if (order.lineItems.edges.length > 0) {
-        const firstLineItem = order.lineItems.edges[0].node;
-        const fileIdAttr = firstLineItem.customAttributes.find(attr => attr.key === '文件ID');
-        if (fileIdAttr) {
-          fileId = fileIdAttr.value;
-        }
-        
-        const fileDataAttr = firstLineItem.customAttributes.find(attr => attr.key === '文件数据');
-        if (fileDataAttr && fileDataAttr.value && fileDataAttr.value.startsWith('data:')) {
-          fileData = fileDataAttr.value;
-          console.log('✅ 从customAttributes提取到文件数据');
-        }
-      }
-
-      // 从customAttributes中获取状态信息
-      let orderStatus = 'pending';
-      if (order.lineItems.edges.length > 0) {
-        const firstLineItem = order.lineItems.edges[0].node;
-        const statusAttr = firstLineItem.customAttributes.find(attr => attr.key === '状态');
-        if (statusAttr && statusAttr.value === '已报价') {
-          orderStatus = 'quoted';
-        }
-      }
-
-      return {
-        id: order.id,
-        name: order.name,
-        email: order.email,
-        status: orderStatus, // 使用从customAttributes获取的状态
-        totalPrice: order.totalPrice,
-        createdAt: order.createdAt,
-        updatedAt: order.updatedAt,
-        invoiceUrl: order.invoiceUrl || 'data:stored',
-        fileId: fileId, // 添加文件ID
-        fileData: fileData, // 添加文件数据
-        note: order.note, // 添加note字段
-        lineItems: order.lineItems.edges.map(itemEdge => ({
-          id: itemEdge.node.id,
-          title: itemEdge.node.title,
-          quantity: itemEdge.node.quantity,
-          originalUnitPrice: itemEdge.node.originalUnitPrice,
-          customAttributes: itemEdge.node.customAttributes
-        }))
-      };
+    // 返回成功响应
+    const response = createSuccessResponse({
+      ...result,
+      message: 'Draft Orders获取成功'
     });
 
-    // 按邮箱兜底过滤，防止意外漏出（管理员除外）
-    let filteredOrders = isAdminRequest
-      ? draftOrders
-      : draftOrders.filter(order => (order.email || '').toLowerCase() === requesterEmail);
-
-    // 状态过滤
-    if (status && status !== 'all') {
-      filteredOrders = filteredOrders.filter(order => order.status === status);
-    }
-
-    // 计算统计信息
-    const total = draftOrders.length;
-    const pending = draftOrders.filter(o => o.status === 'pending').length;
-    const quoted = draftOrders.filter(o => o.status === 'quoted').length;
-
-    return res.status(200).json({
-      success: true,
-      message: 'Draft Orders获取成功',
-      draftOrders: filteredOrders,
-      total: total,
-      pending: pending,
-      quoted: quoted,
-      timestamp: new Date().toISOString()
-    });
+    return res.status(response.status).json(response.body);
 
   } catch (error) {
-    console.error('获取Draft Orders失败:', error);
-    
-    return res.status(500).json({
-      success: false,
-      error: error.message,
-      message: '获取Draft Orders失败',
-      timestamp: new Date().toISOString()
-    });
+    return handleError(error, res, { context: '获取Draft Orders' });
   }
 }
