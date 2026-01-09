@@ -3102,13 +3102,13 @@
       
       // 基础查看器：恢复原始占位符
       viewerContainer.innerHTML = `
-        <div class="viewer-placeholder">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <div class="viewer-placeholder" style="display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; color: #666;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 64px; height: 64px; margin: 0 auto 16px; display: block; opacity: 0.5;">
             <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
             <polyline points="3.27,6.96 12,12.01 20.73,6.96"></polyline>
             <line x1="12" y1="22.08" x2="12" y2="12"></line>
           </svg>
-          <p>上传3D模型文件以查看预览</p>
+          <p style="margin: 0; font-size: 16px; text-align: center;">上传3D模型文件以查看预览</p>
         </div>
       `;
     }
