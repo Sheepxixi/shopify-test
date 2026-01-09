@@ -481,19 +481,25 @@
       renderer.shadowMap.type = THREE.PCFSoftShadowMap;
       viewerContainer.appendChild(renderer.domElement);
 
-      // 添加光源 - 优化光照以获得更好的阴影效果
-      const ambientLight = new THREE.AmbientLight(0xffffff, 0.5); // 提高环境光亮度
+      // 添加光源 - 优化光照以获得更好的金属反光效果
+      const ambientLight = new THREE.AmbientLight(0xffffff, 0.6); // 提高环境光，增强整体亮度
       scene.add(ambientLight);
 
-      const directionalLight = new THREE.DirectionalLight(0xffffff, 1.0); // 增强主光源
+      // 主光源 - 用于产生主要的高光反射
+      const directionalLight = new THREE.DirectionalLight(0xffffff, 1.2);
       directionalLight.position.set(10, 10, 5);
       directionalLight.castShadow = true;
       scene.add(directionalLight);
       
-      // 添加辅助光源，增强立体感
-      const fillLight = new THREE.DirectionalLight(0xffffff, 0.3);
-      fillLight.position.set(-5, 0, -5);
+      // 辅助光源 - 从另一侧照亮，增强金属反光
+      const fillLight = new THREE.DirectionalLight(0xffffff, 0.5);
+      fillLight.position.set(-5, 5, -5);
       scene.add(fillLight);
+      
+      // 添加点光源，增强局部高光反射效果
+      const pointLight = new THREE.PointLight(0xffffff, 0.8, 100);
+      pointLight.position.set(0, 10, 10);
+      scene.add(pointLight);
 
       // 添加控制器
       const controls = new THREE.OrbitControls(camera, renderer.domElement);
@@ -922,11 +928,11 @@
             depth: box.max.z - box.min.z
           };
 
-          // 创建材质 - 使用浅灰色，更有机械感
+          // 创建材质 - 银灰色，带金属反光效果
           const material = new THREE.MeshStandardMaterial({ 
-            color: 0xb4b4b4, // 浅灰色，更接近图片效果
-            metalness: 0.3, // 轻微金属感
-            roughness: 0.6, // 适中的粗糙度，增强机械感
+            color: 0xc8c8d2, // 银灰色，带轻微蓝色调 (RGB: 200, 200, 210)
+            metalness: 0.75, // 增强金属感，产生反光效果
+            roughness: 0.25, // 降低粗糙度，增加表面光泽和反光
             transparent: false,
             opacity: 1.0
           });
@@ -3175,7 +3181,7 @@
           width: 800,
           height: 600,
           backgroundColor: { r: 245, g: 245, b: 245, a: 255 }, // 浅灰色背景，更有机械感
-          defaultColor: { r: 180, g: 180, b: 180 }, // 浅灰色模型，替代蓝色
+          defaultColor: { r: 200, g: 200, b: 210 }, // 银灰色模型，带轻微蓝色调
           showEdges: true, // 启用边缘线
           edgeColor: { r: 50, g: 50, b: 50 }, // 深灰色边缘线，更有机械感
           edgeWidth: 1.5 // 稍微加粗边缘线

@@ -10,7 +10,7 @@ class O3DVWrapper {
       width: 800,
       height: 600,
       backgroundColor: { r: 245, g: 245, b: 245, a: 255 }, // 浅灰色背景
-      defaultColor: { r: 180, g: 180, b: 180 }, // 浅灰色模型
+      defaultColor: { r: 200, g: 200, b: 210 }, // 银灰色模型，带轻微蓝色调
       showEdges: true, // 默认启用边缘线
       edgeColor: { r: 50, g: 50, b: 50 }, // 深灰色边缘线
       edgeWidth: 1.5, // 稍微加粗边缘线
