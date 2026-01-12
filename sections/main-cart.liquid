@@ -14,19 +14,6 @@
     >
       <div class="cart-page__title">
         {%- content_for 'block', id: 'cart-page-title', type: '_cart-title' %}
-        
-        {%- comment -%}
-          添加"我的询价"页面链接
-        {%- endcomment -%}
-        <div class="cart-page__quote-link" style="margin-top: var(--margin-md);">
-          <a 
-            href="/pages/my-quotes" 
-            class="button button--secondary"
-            style="text-decoration: none;"
-          >
-            查看我的询价
-          </a>
-        </div>
       </div>
 
       <div class="cart-page__items">
@@ -36,6 +23,18 @@
       {%- unless cart.empty? -%}
         <div class="cart-page__summary">
           {%- content_for 'block', id: 'cart-page-summary', type: '_cart-summary' -%}
+          
+          {%- comment -%}
+            在购物车摘要下方添加"我的询价"页面链接
+          {%- endcomment -%}
+          <div class="cart-page__quote-link">
+            <a 
+              href="/pages/my-quotes" 
+              class="button button--secondary"
+            >
+              查看我的询价
+            </a>
+          </div>
         </div>
       {%- endunless -%}
 
@@ -85,6 +84,18 @@
 
   .cart-page__summary {
     padding-top: var(--padding-xl);
+  }
+
+  .cart-page__quote-link {
+    margin-top: var(--margin-lg);
+    padding-top: var(--padding-lg);
+    border-top: var(--style-border-width) solid var(--color-border);
+  }
+
+  .cart-page__quote-link .button {
+    width: 100%;
+    text-align: center;
+    text-decoration: none;
   }
 
   @media screen and (min-width: 750px) {
