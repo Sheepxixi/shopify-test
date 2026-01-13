@@ -177,11 +177,26 @@
     border-radius: var(--style-border-radius-inputs);
     border: var(--style-border-width-inputs) solid var(--color-input-border);
     -webkit-font-smoothing: antialiased;
+    transition: all 0.2s ease;
+  }
+
+  .contact-form__input::placeholder {
+    transition: all 0.2s ease;
+  }
+
+  .contact-form__input:focus::placeholder {
+    font-size: 0.85em;
+    opacity: 0.6;
   }
 
   .contact-form__input--textarea {
     resize: vertical;
     min-height: var(--input-textarea-min-height);
+  }
+
+  .contact-form__input--textarea:focus::placeholder {
+    font-size: 0.85em;
+    opacity: 0.6;
   }
 
   .contact-form__error,
