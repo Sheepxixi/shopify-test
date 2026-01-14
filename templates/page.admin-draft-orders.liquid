@@ -1272,6 +1272,12 @@
         if (!confirm(confirmMsg)) {
           return;
         }
+      } else {
+        // 单个文件也显示提示
+        const singleFileMsg = `准备下载文件：${filesToDownload[0].fileName}`;
+        if (!confirm(singleFileMsg + '\n\n是否继续？')) {
+          return;
+        }
       }
 
       // 逐个下载文件（使用更长的延迟，避免浏览器阻止）
