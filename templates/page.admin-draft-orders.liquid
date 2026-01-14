@@ -1216,6 +1216,9 @@
       // 收集所有需要下载的文件信息
       const filesToDownload = [];
       
+      // 调试信息：显示订单中有多少个 lineItems
+      const totalLineItems = order.lineItems.length;
+      
       for (const item of order.lineItems) {
         const attrs = item.customAttributes || [];
         const fileIdAttr = attrs.find(a => a.key === '文件ID');
@@ -1230,7 +1233,13 @@
         const fileTypeLabel = fileTypeAttr && fileTypeAttr.value === '2D' ? '2D' : '3D';
 
         // 检查是否有任何文件标识符
-        if (!fileIdAttr && !shopifyFileUrl && !shopifyFileId) {
+        // 注意：fileIdAttr 是一个对象，需要检查 value 属性
+        const hasFileId = fileIdAttr && fileIdAttr.value;
+        const hasShopifyFileUrl = shopifyFileUrl && shopifyFileUrl.trim() !== '';
+        const hasShopifyFileId = shopifyFileId && shopifyFileId.trim() !== '';
+        
+        if (!hasFileId && !hasShopifyFileUrl && !hasShopifyFileId) {
+          // 这个 lineItem 没有文件信息，跳过
           continue;
         }
 
@@ -1238,14 +1247,14 @@
         let downloadMethod = 'unknown';
         let downloadUrl = null;
         
-        if (shopifyFileId && shopifyFileId.startsWith('gid://')) {
+        if (hasShopifyFileId && shopifyFileId.startsWith('gid://')) {
           downloadMethod = 'shopifyFileId';
           downloadUrl = `${API_BASE}/download-file?shopifyFileId=${encodeURIComponent(shopifyFileId)}&fileName=${encodeURIComponent(fileName)}`;
-        } else if (shopifyFileUrl && shopifyFileUrl.startsWith('https://') && 
+        } else if (hasShopifyFileUrl && shopifyFileUrl.startsWith('https://') && 
                    !shopifyFileUrl.includes('shopify-staged-uploads.storage.googleapis.com')) {
           downloadMethod = 'shopifyFileUrl';
           downloadUrl = `${API_BASE}/download-file?shopifyFileUrl=${encodeURIComponent(shopifyFileUrl)}&fileName=${encodeURIComponent(fileName)}`;
-        } else if (fileIdAttr && fileIdAttr.value) {
+        } else if (hasFileId) {
           downloadMethod = 'fileId';
           downloadUrl = `${API_BASE}/download-file?id=${encodeURIComponent(fileIdAttr.value)}&fileName=${encodeURIComponent(fileName)}`;
         }
@@ -1259,6 +1268,12 @@
             shopifyFileUrl: shopifyFileUrl // 保留原始URL用于降级方案
           });
         }
+      }
+      
+      // 如果检测到的文件数量少于 lineItems 数量，显示提示
+      if (filesToDownload.length < totalLineItems && totalLineItems > 1) {
+        const skippedCount = totalLineItems - filesToDownload.length;
+        alert(`⚠️ 订单中有 ${totalLineItems} 个商品，但只找到 ${filesToDownload.length} 个可下载的文件。\n\n有 ${skippedCount} 个商品没有文件标识符，已跳过。`);
       }
 
       if (filesToDownload.length === 0) {
