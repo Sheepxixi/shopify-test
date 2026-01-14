@@ -876,8 +876,8 @@
       // 优先使用高级查看器加载STP/STEP文件
       if (useAdvancedViewer && o3dvWrapper && is3DFile(fileData.file.name)) {
         console.log('Using advanced viewer for STP/STEP file');
-        // 修复：使用文件对象比较而不是文件名比较，确保切换文件时能正确加载
-        // 同时检查当前文件ID是否匹配，避免不同文件ID但相同文件对象的情况
+        // 修复：使用文件对象和文件ID双重检查，确保切换文件时能正确加载
+        // 如果文件ID不同，说明切换了文件，必须重新加载
         const isSameFile = o3dvWrapper.currentModel === fileData.file && 
                            fileManager.currentFileId === fileId;
         
@@ -890,7 +890,13 @@
         // 如果不是同一个文件，清除之前的模型引用，确保能加载新模型
         console.log('Switching to different file, loading new model:', fileData.file.name);
         console.log('Previous model:', o3dvWrapper.currentModel ? o3dvWrapper.currentModel.name : 'none');
-        console.log('Current fileId:', fileId, 'fileManager.currentFileId:', fileManager.currentFileId);
+        console.log('Previous fileId:', fileManager.currentFileId, 'New fileId:', fileId);
+        
+        // 清除之前的模型引用，强制重新加载
+        if (o3dvWrapper.currentModel && o3dvWrapper.currentModel !== fileData.file) {
+          console.log('Clearing previous model reference');
+          o3dvWrapper.currentModel = null;
+        }
         
         await loadSTPWithAdvancedViewer(fileData.file);
         console.log('loadSTPWithAdvancedViewer completed');

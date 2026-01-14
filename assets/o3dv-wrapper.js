@@ -228,6 +228,16 @@ class O3DVWrapper {
           placeholder.style.display = 'none';
         }
         
+        // 清除之前的模型（如果存在），确保切换文件时能正确显示新模型
+        if (this.currentModel && this.viewer && typeof this.viewer.Clear === 'function') {
+          console.log('O3DVWrapper: Clearing previous model before loading new one');
+          try {
+            this.viewer.Clear();
+          } catch (e) {
+            console.warn('O3DVWrapper: Failed to clear previous model:', e);
+          }
+        }
+        
         // 显示加载状态
         this.showLoading();
         
