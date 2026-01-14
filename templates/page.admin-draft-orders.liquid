@@ -1285,17 +1285,19 @@
         return;
       }
 
+      // 收集所有需要下载的文件信息
+      const filesToDownload = [];
+      
       for (const item of order.lineItems) {
         const attrs = item.customAttributes || [];
-        const fileIdAttr    = attrs.find(a => a.key === '文件ID');
-        const fileNameAttr  = attrs.find(a => a.key === '文件') || attrs.find(a => a.key === '文件名');
+        const fileIdAttr = attrs.find(a => a.key === '文件ID');
+        const fileNameAttr = attrs.find(a => a.key === '文件') || attrs.find(a => a.key === '文件名');
         const shopifyFileUrlAttr = attrs.find(a => a.key === 'Shopify文件URL');
-        const shopifyFileIdAttr  = attrs.find(a => a.key === 'Shopify文件ID');
-        const fileTypeAttr   = attrs.find(a => a.key === '文件类型');
+        const shopifyFileIdAttr = attrs.find(a => a.key === 'Shopify文件ID');
+        const fileTypeAttr = attrs.find(a => a.key === '文件类型');
 
         const shopifyFileUrl = shopifyFileUrlAttr ? shopifyFileUrlAttr.value : null;
-        const shopifyFileId  = shopifyFileIdAttr ? shopifyFileIdAttr.value : null;
-
+        const shopifyFileId = shopifyFileIdAttr ? shopifyFileIdAttr.value : null;
         let fileName = (fileNameAttr && fileNameAttr.value) || item.title || '未知文件';
         const fileTypeLabel = fileTypeAttr && fileTypeAttr.value === '2D' ? '2D' : '3D';
 
@@ -1305,36 +1307,76 @@
           continue;
         }
 
-        // 保留原始文件名，不添加 _2D 或 _3D 后缀
-
-        console.log('准备下载行项目文件:', {
-          title: item.title,
-          fileName,
-          fileType: fileTypeLabel,
-          fileId: fileIdAttr ? fileIdAttr.value : null,
-          shopifyFileUrl,
-          shopifyFileId,
-          allAttrs: attrs.map(a => `${a.key}=${a.value?.substring(0, 50)}...`)
-        });
-
-        // 1）优先使用 Shopify 文件ID（最可靠，因为 URL 可能是临时地址）
+        // 确定下载方式和URL
+        let downloadMethod = 'unknown';
+        let downloadUrl = null;
+        
         if (shopifyFileId && shopifyFileId.startsWith('gid://')) {
-          const dlUrl = `${API_BASE}/download-file?shopifyFileId=${encodeURIComponent(shopifyFileId)}&fileName=${encodeURIComponent(fileName)}`;
-          console.log('✅ 使用 Shopify 文件ID 下载:', dlUrl);
-          window.open(dlUrl, '_blank');
-          // 添加小延迟，避免浏览器阻止多个弹窗
-          await new Promise(resolve => setTimeout(resolve, 300));
-          continue;
+          downloadMethod = 'shopifyFileId';
+          downloadUrl = `${API_BASE}/download-file?shopifyFileId=${encodeURIComponent(shopifyFileId)}&fileName=${encodeURIComponent(fileName)}`;
+        } else if (shopifyFileUrl && shopifyFileUrl.startsWith('https://') && 
+                   !shopifyFileUrl.includes('shopify-staged-uploads.storage.googleapis.com')) {
+          downloadMethod = 'shopifyFileUrl';
+          downloadUrl = `${API_BASE}/download-file?shopifyFileUrl=${encodeURIComponent(shopifyFileUrl)}&fileName=${encodeURIComponent(fileName)}`;
+        } else if (fileIdAttr && fileIdAttr.value) {
+          downloadMethod = 'fileId';
+          downloadUrl = `${API_BASE}/download-file?id=${encodeURIComponent(fileIdAttr.value)}&fileName=${encodeURIComponent(fileName)}`;
         }
 
-        // 2）使用 Shopify 文件 URL（通过 API 代理下载以确保文件名正确）
-        if (shopifyFileUrl && 
-            shopifyFileUrl.startsWith('https://') && 
-            !shopifyFileUrl.includes('shopify-staged-uploads.storage.googleapis.com')) {
-          console.log('✅ 使用 Shopify 文件 URL 通过 API 下载:', shopifyFileUrl);
-          try {
-            const response = await fetch(`${API_BASE}/download-file?shopifyFileUrl=${encodeURIComponent(shopifyFileUrl)}&fileName=${encodeURIComponent(fileName)}`);
+        if (downloadUrl) {
+          filesToDownload.push({
+            fileName,
+            downloadUrl,
+            downloadMethod,
+            fileType: fileTypeLabel,
+            shopifyFileUrl: shopifyFileUrl // 保留原始URL用于降级方案
+          });
+        }
+      }
+
+      if (filesToDownload.length === 0) {
+        alert('未找到可下载的文件');
+        return;
+      }
+
+      console.log(`找到 ${filesToDownload.length} 个文件需要下载:`, filesToDownload);
+
+      // 显示下载进度提示
+      if (filesToDownload.length > 1) {
+        const confirmMsg = `检测到 ${filesToDownload.length} 个文件，将逐个下载。\n\n浏览器可能会询问是否允许多个下载，请点击"允许"。\n\n是否继续？`;
+        if (!confirm(confirmMsg)) {
+          return;
+        }
+      }
+
+      // 逐个下载文件（使用更长的延迟，避免浏览器阻止）
+      for (let i = 0; i < filesToDownload.length; i++) {
+        const file = filesToDownload[i];
+        console.log(`[${i + 1}/${filesToDownload.length}] 下载文件:`, file.fileName);
+
+        try {
+          if (file.downloadMethod === 'shopifyFileId') {
+            // 使用 window.open（需要用户交互）
+            window.open(file.downloadUrl, '_blank');
+            // 增加延迟时间，避免浏览器阻止
+            await new Promise(resolve => setTimeout(resolve, 800));
+          } else {
+            // 使用 fetch + blob 下载（更可靠）
+            const response = await fetch(file.downloadUrl);
             if (!response.ok) {
+              // 如果是 shopifyFileUrl 且失败，尝试降级到直接下载
+              if (file.downloadMethod === 'shopifyFileUrl' && file.shopifyFileUrl) {
+                console.log('API下载失败，尝试直接下载:', file.shopifyFileUrl);
+                const link = document.createElement('a');
+                link.href = file.shopifyFileUrl;
+                link.download = file.fileName;
+                link.target = '_blank';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                await new Promise(resolve => setTimeout(resolve, 500));
+                continue;
+              }
               throw new Error(`下载失败: ${response.status}`);
             }
             const blob = await response.blob();
@@ -1342,59 +1384,26 @@
             const a = document.createElement('a');
             a.style.display = 'none';
             a.href = url;
-            a.download = fileName; // API 已经设置了正确的文件名
+            a.download = file.fileName;
             document.body.appendChild(a);
             a.click();
             window.URL.revokeObjectURL(url);
             a.remove();
-            console.log('✅ Shopify 文件 URL 下载完成:', fileName);
-            await new Promise(resolve => setTimeout(resolve, 300));
-            continue;
-          } catch (err) {
-            console.error('通过 API 下载 Shopify 文件 URL 异常:', err);
-            // 降级到直接下载
-            const link = document.createElement('a');
-            link.href = shopifyFileUrl;
-            link.download = fileName;
-            link.target = '_blank';
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            await new Promise(resolve => setTimeout(resolve, 300));
-            continue;
+            console.log(`✅ 文件下载完成: ${file.fileName}`);
+            // 延迟，避免浏览器阻止多个下载
+            await new Promise(resolve => setTimeout(resolve, 500));
           }
+        } catch (error) {
+          console.error(`❌ 下载文件失败 ${file.fileName}:`, error);
+          // 继续下载其他文件，不中断
         }
+      }
 
-        // 3）最后退回到 fileId -> /api/download-file?id=...
-        if (fileIdAttr && fileIdAttr.value) {
-          const id = fileIdAttr.value;
-          console.log('⚠️ 通过 fileId 走 API 下载（降级方案）:', id);
-          try {
-            const resp = await fetch(`${API_BASE}/download-file?id=${encodeURIComponent(id)}`);
-            if (!resp.ok) {
-              console.warn('通过 fileId 下载失败:', id, '状态:', resp.status);
-              continue;
-            }
-            const blob = await resp.blob();
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.style.display = 'none';
-            a.href = url;
-            a.download = fileName;
-            document.body.appendChild(a);
-            a.click();
-            window.URL.revokeObjectURL(url);
-            a.remove();
-            console.log('✅ API 文件下载完成:', fileName);
-            await new Promise(resolve => setTimeout(resolve, 300));
-            continue;
-          } catch (err) {
-            console.error('❌ fileId 下载异常:', err);
-            continue;
-          }
-        }
-
-        console.warn('⚠️ 无法下载文件，缺少有效标识符:', fileName);
+      // 显示完成提示
+      if (filesToDownload.length > 1) {
+        setTimeout(() => {
+          alert(`✅ 已启动 ${filesToDownload.length} 个文件的下载。\n\n如果某些文件没有下载，请检查浏览器的下载设置，确保允许多个下载。`);
+        }, 1000);
       }
 
       console.log('订单所有文件下载流程结束');
