@@ -118,40 +118,6 @@
           });
         };
 
-        // Translate specific top-nav labels to English at runtime.
-        // IMPORTANT: Only touches TEXT NODES inside header links to avoid breaking layout/DOM.
-        const applyHeaderNavEnglish = () => {
-          const map = new Map([
-            ['\u6211\u7684\u8be2\u4ef7', 'My Quotes'],
-            ['\u8349\u7a3f\u8ba2\u5355\u7ba1\u7406', 'Draft Orders'],
-            ['\u8054\u7cfb\u65b9\u5f0f', 'Contact']
-          ]);
-
-          const headerRoot =
-            document.querySelector('#header-group') ||
-            document.querySelector('header') ||
-            document.body;
-
-          const links = headerRoot.querySelectorAll('a, summary, button');
-          links.forEach((el) => {
-            // Walk text nodes only; do NOT overwrite element.textContent (would drop children)
-            const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
-            const nodes = [];
-            let n;
-            while ((n = walker.nextNode())) nodes.push(n);
-            nodes.forEach((t) => {
-              const raw = (t.nodeValue || '').trim();
-              if (!raw) return;
-              const compact = raw.replace(/\s+/g, '');
-              for (const [cn, en] of map.entries()) {
-                if (compact === cn || raw.includes(cn)) {
-                  t.nodeValue = t.nodeValue.replaceAll(cn, en);
-                }
-              }
-            });
-          });
-        };
-
         if (!isAdmin) {
           const hideLinks = () => {
             const links = document.querySelectorAll('a[href*="admin-draft-orders"], a[href*="/pages/admin-draft-orders"]');
@@ -164,7 +130,6 @@
             // Hide "More" entry and cart icon, then apply English labels
             hideMoreMenus();
             hideCartIcon();
-            applyHeaderNavEnglish();
           };
           if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', hideLinks);
@@ -176,12 +141,10 @@
             document.addEventListener('DOMContentLoaded', () => {
               hideMoreMenus();
               hideCartIcon();
-              applyHeaderNavEnglish();
             });
           } else {
             hideMoreMenus();
             hideCartIcon();
-            applyHeaderNavEnglish();
           }
         }
       })();

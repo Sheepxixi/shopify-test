@@ -222,10 +222,10 @@
       };
     }
 
-    // 其他材质 fallback：仅“不做”
+    // Other: fallback to "None"
     return {
-      primary: ['不做'],
-      secondary: ['不做'],
+      primary: ['None'],
+      secondary: ['None'],
       colorMap: { default: [] },
       sheenMap: {}
     };
@@ -233,8 +233,8 @@
 
   function normalizeSurfaceTreatments(treatments, surfaceEnabled = true, rule = getSurfaceRule(getDefaultMaterialType(DEFAULT_MATERIAL_CATEGORY), DEFAULT_MATERIAL_CATEGORY)) {
     if (!surfaceEnabled) return [];
-    const primaryList = rule.primary || ['不做'];
-    const secondaryList = rule.secondary || ['不做'];
+    const primaryList = rule.primary || ['None'];
+    const secondaryList = rule.secondary || ['None'];
     const primaryColors = rule.colorMap?.default || [];
     const secondaryColors = rule.colorMap?.default || [];
 
@@ -275,10 +275,10 @@
   }
 
   function stringifySurfaceTreatments(treatments, surfaceEnabled = true) {
-    if (!surfaceEnabled) return '无需表面处理';
-    if (!treatments || treatments.length === 0) return '无需表面处理';
+    if (!surfaceEnabled) return 'No finish';
+    if (!treatments || treatments.length === 0) return 'No finish';
     return treatments.map(t => {
-      if (!t.process || t.process === '不做') return '';
+      if (!t.process || t.process === 'None') return '';
       const parts = [];
       if (t.process) parts.push(t.process);
       const detail = [t.color, t.sheen].filter(Boolean).join(' / ');
@@ -306,7 +306,7 @@
       wrapper.style.marginBottom = '8px';
 
       const label = document.createElement('div');
-      label.textContent = `表面处理${idx + 1}:`;
+      label.textContent = `Surface finish ${idx + 1}:`;
       label.style.minWidth = '88px';
       wrapper.appendChild(label);
 
