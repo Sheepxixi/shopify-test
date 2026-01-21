@@ -118,42 +118,37 @@
           });
         };
 
-        // Translate specific Chinese labels to English at runtime.
-        // This is necessary when labels come from Shopify Navigation / product titles (not from theme code).
-        const applyEnglishTextMap = () => {
+        // Translate specific top-nav labels to English at runtime.
+        // IMPORTANT: Only touches TEXT NODES inside header links to avoid breaking layout/DOM.
+        const applyHeaderNavEnglish = () => {
           const map = new Map([
-            ['\u5b9a\u5236\u5316\u52a0\u5de5\u670d\u52a1', 'Custom Manufacturing'],
             ['\u6211\u7684\u8be2\u4ef7', 'My Quotes'],
             ['\u8349\u7a3f\u8ba2\u5355\u7ba1\u7406', 'Draft Orders'],
-            ['\u8054\u7cfb\u65b9\u5f0f', 'Contact'],
-            ['3D\u6253\u5370\u670d\u52a1', '3D Printing Service'],
-            ['CNC\u52a0\u5de5\u670d\u52a1', 'CNC Machining Service']
+            ['\u8054\u7cfb\u65b9\u5f0f', 'Contact']
           ]);
 
-          const candidates = document.querySelectorAll(
-            'a, button, summary, span, p, h1, h2, h3, h4, h5, h6, li, div'
-          );
-          candidates.forEach((el) => {
-            if (!el) return;
-            const txt = (el.textContent || '').trim();
-            if (!txt) return;
+          const headerRoot =
+            document.querySelector('#header-group') ||
+            document.querySelector('header') ||
+            document.body;
 
-            // Exact match (ignoring whitespace)
-            const compact = txt.replace(/\s+/g, '');
-            for (const [cn, en] of map.entries()) {
-              if (compact === cn) {
-                el.textContent = en;
-                return;
+          const links = headerRoot.querySelectorAll('a, summary, button');
+          links.forEach((el) => {
+            // Walk text nodes only; do NOT overwrite element.textContent (would drop children)
+            const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+            const nodes = [];
+            let n;
+            while ((n = walker.nextNode())) nodes.push(n);
+            nodes.forEach((t) => {
+              const raw = (t.nodeValue || '').trim();
+              if (!raw) return;
+              const compact = raw.replace(/\s+/g, '');
+              for (const [cn, en] of map.entries()) {
+                if (compact === cn || raw.includes(cn)) {
+                  t.nodeValue = t.nodeValue.replaceAll(cn, en);
+                }
               }
-            }
-
-            // Substring match (useful when menus include extra wrappers/icons)
-            for (const [cn, en] of map.entries()) {
-              if (txt.includes(cn)) {
-                el.textContent = txt.replaceAll(cn, en);
-                return;
-              }
-            }
+            });
           });
         };
 
@@ -169,7 +164,7 @@
             // Hide "More" entry and cart icon, then apply English labels
             hideMoreMenus();
             hideCartIcon();
-            applyEnglishTextMap();
+            applyHeaderNavEnglish();
           };
           if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', hideLinks);
@@ -181,12 +176,12 @@
             document.addEventListener('DOMContentLoaded', () => {
               hideMoreMenus();
               hideCartIcon();
-              applyEnglishTextMap();
+              applyHeaderNavEnglish();
             });
           } else {
             hideMoreMenus();
             hideCartIcon();
-            applyEnglishTextMap();
+            applyHeaderNavEnglish();
           }
         }
       })();
