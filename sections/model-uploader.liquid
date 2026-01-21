@@ -551,7 +551,7 @@
   {%- endstyle -%}
 
   <div class="uploader-container">
-    <h1 class="page-title">上传 3D 模型</h1>
+    <h1 class="page-title">Upload 3D Files</h1>
     
     <div class="uploader-grid">
       <!-- 左侧：3D模型查看器和文件上传区域 -->
@@ -565,7 +565,7 @@
                 <polyline points="3.27,6.96 12,12.01 20.73,6.96"></polyline>
                 <line x1="12" y1="22.08" x2="12" y2="12"></line>
               </svg>
-              <p>上传3D模型文件以查看预览</p>
+              <p>Upload a 3D file to preview</p>
             </div>
           </div>
         </div>
@@ -578,9 +578,9 @@
               <polyline points="7,10 12,15 17,10"></polyline>
               <line x1="12" y1="15" x2="12" y2="3"></line>
             </svg>
-            <h3>上传您的 3D 模型</h3>
-            <p>支持格式：STP / STEP 文件，以及对应的2D图纸（DWG / DXF / PDF）</p>
-            <p class="file-limit">单次上传文件≤20个,单个文件大小&lt;100M</p>
+            <h3>Upload your CAD files</h3>
+            <p>Supported: STP/STEP, plus matching 2D drawings (DWG/DXF/PDF)</p>
+            <p class="file-limit">Up to 20 files per upload; max 100 MB per file</p>
             <button type="button" class="upload-btn" id="upload-btn">选择文件</button>
           </div>
           <input type="file" id="uploader-input" multiple accept=".stp,.step,.zip,.dwg,.dxf,.pdf" style="display: none;">
@@ -589,7 +589,7 @@
         <!-- 加载指示器 -->
         <div class="loading-indicator" id="loading-indicator" style="display: none;">
           <div class="spinner"></div>
-          <p>分析你的设计</p>
+          <p>Analyzing your design…</p>
         </div>
 
         <!-- 错误消息 -->
@@ -597,73 +597,73 @@
 
         <!-- 文件列表 -->
         <div class="file-list" id="file-list" style="display: none;">
-          <h3>已上传文件</h3>
+          <h3>Uploaded files</h3>
           <div class="file-items" id="file-items"></div>
         </div>
         </div>
         
       <!-- 右侧：参数配置区域 -->
       <div class="uploader-right">
-        <h2 class="config-title">配置选项</h2>
+        <h2 class="config-title">Specifications</h2>
         
         <!-- 单位选择 -->
         <div class="config-group">
-          <label class="config-label">单位</label>
+          <label class="config-label">Units</label>
           <div class="radio-group">
             <label class="radio-item">
               <input type="radio" name="unit" value="mm" checked>
-              <span>毫米 (mm)</span>
+              <span>Millimeters (mm)</span>
             </label>
             <label class="radio-item">
               <input type="radio" name="unit" value="in">
-              <span>英寸 (in)</span>
+              <span>Inches (in)</span>
             </label>
       </div>
     </div>
 
         <!-- 材料选择 -->
         <div class="config-group">
-          <label class="config-label">材料类别</label>
+          <label class="config-label">Material category</label>
           <select id="material-category" class="config-select">
-            <option value="铝合金">铝合金</option>
-            <option value="塑料">塑料</option>
-            <option value="铜合金">铜合金</option>
-            <option value="合金钢">合金钢</option>
-            <option value="不锈钢">不锈钢</option>
+            <option value="铝合金">Aluminum alloy</option>
+            <option value="塑料">Plastic</option>
+            <option value="铜合金">Copper alloy</option>
+            <option value="合金钢">Alloy steel</option>
+            <option value="不锈钢">Stainless steel</option>
           </select>
         </div>
 
         <div class="config-group">
-          <label class="config-label">材料类型</label>
+          <label class="config-label">Material grade</label>
           <select id="material-type" class="config-select">
-            <option value="铝合金-6061">铝合金-6061</option>
-            <option value="铝合金-7075">铝合金-7075</option>
+            <option value="铝合金-6061">Aluminum 6061</option>
+            <option value="铝合金-7075">Aluminum 7075</option>
           </select>
         </div>
 
         <!-- 表面处理（可选，可多项） -->
         <div class="config-group">
-          <label class="config-label">表面处理</label>
+          <label class="config-label">Surface finish</label>
           <div class="radio-group" style="margin-bottom:8px;">
             <label class="radio-item">
               <input type="radio" name="surface-enabled" value="yes">
-              <span>需要表面处理</span>
+              <span>Finish required</span>
             </label>
             <label class="radio-item">
               <input type="radio" name="surface-enabled" value="no" checked>
-              <span>无需表面处理</span>
+              <span>No finish</span>
             </label>
           </div>
           <div id="surface-list"></div>
           <div style="margin-top:8px;color:#666;font-size:12px;line-height:1.5;">
-            备注1：哑光，表面反光率低，光线模糊不明显，光感柔和，不刺眼；亮光，表面反光效果好，反光度高。<br>
-            备注2：喷砂默认统一按100目进行处理。
+            Note 1: Matte = low reflectivity; Gloss = high reflectivity.<br>
+            Note 2: Bead blasting defaults to 100-grit.
           </div>
         </div>
 
         <!-- 最严公差 -->
         <div class="config-group">
-          <label class="config-label">最严公差</label>
+          <label class="config-label">Tightest tolerance</label>
           <select id="tightest-tolerance" class="config-select">
             <option value="GB/T 1804-2000 m级">GB/T 1804-2000 m级</option>
             <option value="±0.10mm">±0.10mm</option>
@@ -673,7 +673,7 @@
 
         <!-- 表面粗糙度 -->
         <div class="config-group">
-          <label class="config-label">最小粗糙度</label>
+          <label class="config-label">Surface roughness</label>
           <select id="surface-roughness" class="config-select">
             <option value="Ra3.2">Ra3.2</option>
             <option value="Ra1.6">Ra1.6</option>
@@ -682,44 +682,44 @@
 
         <!-- 是否有螺纹 -->
         <div class="config-group">
-          <label class="config-label">是否有螺纹</label>
+          <label class="config-label">Threads</label>
           <div class="radio-group">
             <label class="radio-item">
               <input type="radio" name="has-thread" value="yes">
-              <span>是</span>
+              <span>Yes</span>
           </label>
             <label class="radio-item">
               <input type="radio" name="has-thread" value="no" checked>
-              <span>否</span>
+              <span>No</span>
           </label>
         </div>
       </div>
 
         <!-- 是否有装配关系 -->
         <div class="config-group">
-          <label class="config-label">是否有装配关系</label>
+          <label class="config-label">Assembly features</label>
           <div class="radio-group">
             <label class="radio-item">
               <input type="radio" name="has-assembly-mark" value="yes">
-              <span>是</span>
+              <span>Yes</span>
             </label>
             <label class="radio-item">
               <input type="radio" name="has-assembly-mark" value="no" checked>
-              <span>否</span>
+              <span>No</span>
             </label>
       </div>
       </div>
 
         <!-- 尺寸显示 -->
         <div class="dimensions-display" id="dimensions-display" style="display: none;">
-          <div class="dimensions-label">尺寸</div>
-          <div class="dimensions-value" id="dimensions-value">0 x 0 x 0 毫米</div>
+          <div class="dimensions-label">Dimensions</div>
+          <div class="dimensions-value" id="dimensions-value">0 × 0 × 0 mm</div>
       </div>
 
 
         <!-- 数量 -->
         <div class="config-group">
-          <label class="config-label">数量</label>
+          <label class="config-label">Quantity</label>
           <div class="quantity-selector">
             <button type="button" class="qty-btn" id="qty-minus">-</button>
             <input type="number" id="qty" value="1" min="1" class="qty-input">
@@ -729,8 +729,8 @@
 
         <!-- 备注 -->
         <div class="config-group">
-          <label class="config-label">备注</label>
-          <textarea id="note" class="config-textarea" placeholder="请输入特殊要求或备注信息..." maxlength="200"></textarea>
+          <label class="config-label">Notes</label>
+          <textarea id="note" class="config-textarea" placeholder="Add special requirements (e.g., tolerances, finish, lead time)..." maxlength="200"></textarea>
         <div class="char-count">
           <span id="char-count">0</span>/200
         </div>
@@ -740,7 +740,7 @@
       <div class="warning-note">
         <div class="warning-icon">⚠️</div>
         <div class="warning-text">
-          <strong>重要提醒：</strong>如果您的3D模型包含螺纹或装配标记，请确保为每个3D文件上传对应的2D图纸文件（DWG/DXF/PDF），以便我们提供准确的加工报价。
+          <strong>Important:</strong> If your part includes threads or assembly features, please upload the matching 2D drawing (DWG/DXF/PDF) for each 3D file so we can quote accurately.
         </div>
       </div>
 
@@ -752,7 +752,7 @@
             <circle cx="20" cy="21" r="1"></circle>
             <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
           </svg>
-          立即询价
+          Request a Quote
         </button>
 
         <!-- 信息提示 -->
@@ -762,14 +762,14 @@
               <circle cx="12" cy="12" r="10"></circle>
               <polyline points="12,6 12,12 16,14"></polyline>
             </svg>
-            <span>预计交付: 3-5个工作日</span>
+            <span>Estimated lead time: 3–5 business days</span>
         </div>
           <div class="info-item">
             <svg class="info-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M9 12l2 2 4-4"></path>
               <circle cx="12" cy="12" r="10"></circle>
           </svg>
-          <span>质量保证：100%合格</span>
+          <span>Quality assurance: 100% inspection</span>
           </div>
         </div>
       </div>
@@ -926,23 +926,23 @@
     {
       "type": "text",
       "id": "title",
-      "label": "标题",
-      "default": "上传 3D 模型"
+      "label": "Title",
+      "default": "Upload 3D Files"
     },
     {
       "type": "product",
       "id": "product",
-      "label": "关联商品（用于加入购物车）"
+      "label": "Linked product (for add-to-cart)"
     },
     {
       "type": "color_scheme",
       "id": "color_scheme",
-      "label": "颜色方案",
+      "label": "Color scheme",
       "default": "background-1"
     },
     {
       "type": "header",
-      "content": "间距设置"
+      "content": "Spacing"
     },
     {
       "type": "range",
@@ -951,7 +951,7 @@
       "max": 100,
       "step": 4,
       "unit": "px",
-      "label": "顶部间距",
+      "label": "Padding top",
       "default": 36
     },
     {
@@ -961,7 +961,7 @@
       "max": 100,
       "step": 4,
       "unit": "px",
-      "label": "底部间距",
+      "label": "Padding bottom",
       "default": 36
     }
   ],

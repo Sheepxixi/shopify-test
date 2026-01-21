@@ -1,13 +1,13 @@
 <!--
   ═══════════════════════════════════════════════════════════════
-  询价请求页面 - 完整版（类似图2样式）
+  RFQ Page - Full Version (layout similar to reference)
   ═══════════════════════════════════════════════════════════════
   
-  功能：
-  1. 3D 模型上传和预览
-  2. 完整的配置选项（材质、颜色、精度等）
-  3. 提交询价（调用新的 submit-quote API）
-  4. 跳转到"我的询价"页面查看状态
+  Features:
+  1. 3D model upload & preview
+  2. Full configuration options (material, finish, tolerance, etc.)
+  3. Submit RFQ (calls submit-quote API)
+  4. Redirect to "My Quotes" to track status
 -->
 
 <div class="quote-request-container">
@@ -16,34 +16,34 @@
     
     <!-- 左侧：3D 模型上传和预览 -->
     <div class="upload-section">
-      <h2>📁 上传 3D 模型</h2>
+      <h2>📁 Upload 3D Files</h2>
       
       <!-- 3D 预览区域 -->
       <div class="model-viewer-container">
         <div id="model-viewer" class="model-viewer">
           <div class="viewer-placeholder">
             <div class="viewer-icon">🎯</div>
-            <p>上传文件后将显示 3D 模型预览</p>
+            <p>Your 3D preview will appear after upload</p>
           </div>
         </div>
         
         <!-- 预览工具按钮 -->
         <div class="viewer-tools">
-          <button class="tool-btn" title="查看视图">
+          <button class="tool-btn" title="View">
             <span class="icon">👁️</span>
-            <span class="text">查看视图</span>
+            <span class="text">View</span>
           </button>
-          <button class="tool-btn" title="测量">
+          <button class="tool-btn" title="Measure">
             <span class="icon">📏</span>
-            <span class="text">测量</span>
+            <span class="text">Measure</span>
           </button>
-          <button class="tool-btn" title="标注">
+          <button class="tool-btn" title="Annotate">
             <span class="icon">✏️</span>
-            <span class="text">标注</span>
+            <span class="text">Annotate</span>
           </button>
-          <button class="tool-btn" title="导出">
+          <button class="tool-btn" title="Export">
             <span class="icon">📤</span>
-            <span class="text">导出</span>
+            <span class="text">Export</span>
           </button>
         </div>
       </div>
@@ -52,84 +52,84 @@
       <div class="upload-area" id="dropzone">
         <div class="upload-info">
           <div class="upload-icon">📁</div>
-          <h3>上传您的3D模型</h3>
-          <p class="supported-formats">支持格式: STP / STEP 文件, 以及对应的2D图纸 (DWG / DXF / PDF)</p>
-          <p class="file-limit">单次上传文件≤20个, 单个文件大小<100M</p>
+          <h3>Upload your CAD files</h3>
+          <p class="supported-formats">Supported: STP/STEP, plus matching 2D drawings (DWG/DXF/PDF)</p>
+          <p class="file-limit">Up to 20 files per upload; max 100 MB per file</p>
         </div>
         <input type="file" id="file-input" accept=".step,.stp,.stl,.obj,.3ds,.fbx,.dae,.gltf,.glb,.dwg,.dxf,.pdf" style="display: none;" multiple>
         <button type="button" class="upload-btn" onclick="document.getElementById('file-input').click()">
-          选择文件
+          Choose files
         </button>
       </div>
       
       <!-- 文件预览 -->
       <div id="file-preview" class="file-preview" style="display: none;">
-        <h3>已选择的文件</h3>
+        <h3>Selected files</h3>
         <div id="file-list"></div>
       </div>
     </div>
     
     <!-- 右侧：配置选项 -->
     <div class="config-section">
-      <h2>⚙️ 配置选项</h2>
+      <h2>⚙️ Specifications</h2>
       
       <form id="quote-form" class="config-form">
         
         <!-- 单位选择 -->
         <div class="form-group">
-          <label>单位</label>
+          <label>Units</label>
           <div class="radio-group">
             <label class="radio-item">
               <input type="radio" name="unit" value="mm" checked>
-              <span class="radio-text">毫米 (mm)</span>
+              <span class="radio-text">Millimeters (mm)</span>
             </label>
             <label class="radio-item">
               <input type="radio" name="unit" value="in">
-              <span class="radio-text">英寸 (in)</span>
+              <span class="radio-text">Inches (in)</span>
             </label>
           </div>
         </div>
         
         <!-- 材质选择 -->
         <div class="form-group">
-          <label for="material">材质 *</label>
+          <label for="material">Material *</label>
           <select id="material" name="material" required>
-            <option value="">请选择材质</option>
+            <option value="">Select a material</option>
             <option value="PLA">PLA</option>
             <option value="ABS" selected>ABS</option>
             <option value="PETG">PETG</option>
-            <option value="尼龙">尼龙</option>
-            <option value="树脂">树脂</option>
-            <option value="金属">金属</option>
-            <option value="其他">其他</option>
+            <option value="尼龙">Nylon</option>
+            <option value="树脂">Resin</option>
+            <option value="金属">Metal</option>
+            <option value="其他">Other</option>
           </select>
         </div>
         
         <!-- 颜色和表面 -->
         <div class="form-group">
-          <label for="color">颜色和表面</label>
+          <label for="color">Color / Finish</label>
           <select id="color" name="color">
-            <option value="自然色" selected>自然色</option>
-            <option value="白色">白色</option>
-            <option value="黑色">黑色</option>
-            <option value="透明">透明</option>
-            <option value="其他">其他</option>
+            <option value="自然色" selected>Natural</option>
+            <option value="白色">White</option>
+            <option value="黑色">Black</option>
+            <option value="透明">Clear</option>
+            <option value="其他">Other</option>
           </select>
         </div>
         
         <!-- 精度等级 -->
         <div class="form-group">
-          <label for="precision">精度等级</label>
+          <label for="precision">Precision</label>
           <select id="precision" name="precision">
-            <option value="标准 (±0.1mm)" selected>标准 (±0.1mm)</option>
-            <option value="高精度 (±0.05mm)">高精度 (±0.05mm)</option>
-            <option value="超高精度 (±0.02mm)">超高精度 (±0.02mm)</option>
+            <option value="标准 (±0.1mm)" selected>Standard (±0.1mm)</option>
+            <option value="高精度 (±0.05mm)">High (±0.05mm)</option>
+            <option value="超高精度 (±0.02mm)">Ultra (±0.02mm)</option>
           </select>
         </div>
         
         <!-- 公差标准 -->
         <div class="form-group">
-          <label for="tolerance">公差标准</label>
+          <label for="tolerance">Tolerance Standard</label>
           <select id="tolerance" name="tolerance">
             <option value="GB/T 1804-2000 m级" selected>GB/T 1804-2000 m级</option>
             <option value="GB/T 1804-2000 f级">GB/T 1804-2000 f级</option>
@@ -139,7 +139,7 @@
         
         <!-- 最小粗糙度 -->
         <div class="form-group">
-          <label for="roughness">最小粗糙度</label>
+          <label for="roughness">Surface Roughness</label>
           <select id="roughness" name="roughness">
             <option value="Ra3.2" selected>Ra3.2</option>
             <option value="Ra1.6">Ra1.6</option>
@@ -150,43 +150,43 @@
         
         <!-- 螺纹 -->
         <div class="form-group">
-          <label>有螺纹？</label>
+          <label>Threads?</label>
           <div class="radio-group">
             <label class="radio-item">
               <input type="radio" name="hasThread" value="yes">
-              <span class="radio-text">是</span>
+              <span class="radio-text">Yes</span>
             </label>
             <label class="radio-item">
               <input type="radio" name="hasThread" value="no" checked>
-              <span class="radio-text">否</span>
+              <span class="radio-text">No</span>
             </label>
           </div>
         </div>
         
         <!-- 装配标记 -->
         <div class="form-group">
-          <label>有装配标记？</label>
+          <label>Assembly features?</label>
           <div class="radio-group">
             <label class="radio-item">
               <input type="radio" name="hasAssembly" value="yes">
-              <span class="radio-text">是</span>
+              <span class="radio-text">Yes</span>
             </label>
             <label class="radio-item">
               <input type="radio" name="hasAssembly" value="no" checked>
-              <span class="radio-text">否</span>
+              <span class="radio-text">No</span>
             </label>
           </div>
         </div>
         
         <!-- 缩放 -->
         <div class="form-group">
-          <label for="scale">缩放: <span id="scale-value">100%</span></label>
+          <label for="scale">Scale: <span id="scale-value">100%</span></label>
           <input type="range" id="scale" name="scale" min="10" max="500" value="100" class="slider">
         </div>
         
         <!-- 数量 -->
         <div class="form-group">
-          <label for="quantity">数量 *</label>
+          <label for="quantity">Quantity *</label>
           <div class="quantity-input">
             <button type="button" class="qty-btn" onclick="changeQuantity(-1)">-</button>
             <input type="number" id="quantity" name="quantity" min="1" value="1" required>
@@ -196,20 +196,20 @@
         
         <!-- 客户信息 -->
         <div class="form-group">
-          <label for="customer-name">您的姓名</label>
-          <input type="text" id="customer-name" name="customer-name" placeholder="请输入您的姓名">
+          <label for="customer-name">Name</label>
+          <input type="text" id="customer-name" name="customer-name" placeholder="Enter your name">
         </div>
         
         <div class="form-group">
-          <label for="customer-email">联系邮箱 *</label>
-          <input type="email" id="customer-email" name="customer-email" placeholder="用于接收报价通知" required>
-          <span class="hint">我们将通过邮箱通知您报价结果</span>
+          <label for="customer-email">Email *</label>
+          <input type="email" id="customer-email" name="customer-email" placeholder="We’ll send your quote to this email" required>
+          <span class="hint">We’ll notify you by email when your quote is ready.</span>
         </div>
         
         <!-- 备注 -->
         <div class="form-group">
-          <label for="note">备注</label>
-          <textarea id="note" name="note" rows="4" placeholder="请输入特殊要求或备注信息..." maxlength="200"></textarea>
+          <label for="note">Notes</label>
+          <textarea id="note" name="note" rows="4" placeholder="Add any special requirements (e.g., tolerances, finish, lead time)..." maxlength="200"></textarea>
           <div class="char-count">
             <span id="char-count">0</span>/200
           </div>
@@ -226,16 +226,16 @@
     <div class="warning-box">
       <div class="warning-icon">⚠️</div>
       <div class="warning-text">
-        重要提醒: 如果您的3D模型包含螺纹或装配标记, 请确保为每个3D文件上传对应的2D图纸文件 (DWG/DXF/PDF), 以便我们提供准确的加工报价。
+        Important: If your part includes threads or assembly features, please upload the matching 2D drawing (DWG/DXF/PDF) for each 3D file so we can quote accurately.
       </div>
     </div>
     
     <!-- 提交按钮 -->
     <div class="submit-section">
       <button type="button" id="submit-btn" class="submit-btn" onclick="submitQuote()" disabled>
-        <span id="btn-text">立即询价</span>
+        <span id="btn-text">Request a Quote</span>
         <span id="btn-loading" style="display: none;">
-          <span class="spinner"></span> 提交中...
+          <span class="spinner"></span> Submitting...
         </span>
       </button>
       
@@ -243,11 +243,11 @@
       <div class="info-cards">
         <div class="info-card">
           <span class="info-icon">⏰</span>
-          <span class="info-text">预计交付: 3-5个工作日</span>
+          <span class="info-text">Estimated lead time: 3–5 business days</span>
         </div>
         <div class="info-card">
           <span class="info-icon">✅</span>
-          <span class="info-text">质量保证: 100%合格</span>
+          <span class="info-text">Quality assurance: 100% inspection</span>
         </div>
       </div>
     </div>
@@ -261,20 +261,20 @@
         <div class="checkmark-kick"></div>
       </div>
     </div>
-    <h3>询价提交成功！</h3>
+    <h3>RFQ Submitted!</h3>
     <p id="success-text"></p>
     <div class="success-actions">
-      <button class="btn-primary" onclick="viewQuote()">查看询价单</button>
-      <button class="btn-secondary" onclick="closeSuccessMessage()">继续询价</button>
+      <button class="btn-primary" onclick="viewQuote()">View Quote</button>
+      <button class="btn-secondary" onclick="closeSuccessMessage()">Submit Another</button>
     </div>
   </div>
   
   <!-- 错误消息 -->
   <div id="error-message" class="error-message" style="display: none;">
     <div class="error-icon">❌</div>
-    <h3>提交失败</h3>
+    <h3>Submission Failed</h3>
     <p id="error-text"></p>
-    <button class="btn-secondary" onclick="hideError()">关闭</button>
+    <button class="btn-secondary" onclick="hideError()">Close</button>
   </div>
 </div>
 
@@ -930,7 +930,7 @@
   }
 </style>
 
-<!-- 引入Three.js用于3D预览 -->
+<!-- Three.js for 3D preview -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/STLLoader.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/OBJLoader.js"></script>
@@ -958,7 +958,7 @@
   });
   
   /**
-   * 初始化3D查看器
+   * Initialize 3D viewer
    */
   function init3DViewer() {
     const viewer = document.getElementById('model-viewer');
@@ -978,7 +978,7 @@
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     
-    // 清空占位符并添加渲染器
+    // Replace placeholder with renderer
     viewer.innerHTML = '';
     viewer.appendChild(renderer.domElement);
     
@@ -1006,7 +1006,7 @@
   }
   
   /**
-   * 渲染循环
+   * Render loop
    */
   function animate() {
     requestAnimationFrame(animate);
@@ -1021,7 +1021,7 @@
   }
   
   /**
-   * 窗口大小调整
+   * Resize handling
    */
   function onWindowResize() {
     const viewer = document.getElementById('model-viewer');
@@ -1033,7 +1033,7 @@
   }
   
   /**
-   * 加载3D模型
+   * Load 3D model
    */
   async function load3DModel(file) {
     if (!scene || !renderer) return;
@@ -1052,19 +1052,19 @@
       } else if (fileName.endsWith('.obj')) {
         await loadOBJModel(file);
       } else if (fileName.endsWith('.step') || fileName.endsWith('.stp')) {
-        // 对于STEP文件，显示占位符信息
+        // STEP: show info placeholder (requires CAD software)
         showStepFileInfo(file);
       } else {
         showUnsupportedFileInfo(file);
       }
     } catch (error) {
-      console.error('加载3D模型失败:', error);
-      showErrorInfo('模型加载失败: ' + error.message);
+      console.error('Failed to load 3D model:', error);
+      showErrorInfo('Model load failed: ' + error.message);
     }
   }
   
   /**
-   * 加载STL模型
+   * Load STL model
    */
   function loadSTLModel(file) {
     return new Promise((resolve, reject) => {
@@ -1113,7 +1113,7 @@
           resolve();
         },
         function (progress) {
-          console.log('STL加载进度:', (progress.loaded / progress.total * 100) + '%');
+          console.log('STL load progress:', (progress.loaded / progress.total * 100) + '%');
         },
         function (error) {
           URL.revokeObjectURL(url);
@@ -1124,7 +1124,7 @@
   }
   
   /**
-   * 加载OBJ模型
+   * Load OBJ model
    */
   function loadOBJModel(file) {
     return new Promise((resolve, reject) => {
@@ -1173,7 +1173,7 @@
           resolve();
         },
         function (progress) {
-          console.log('OBJ加载进度:', (progress.loaded / progress.total * 100) + '%');
+          console.log('OBJ load progress:', (progress.loaded / progress.total * 100) + '%');
         },
         function (error) {
           URL.revokeObjectURL(url);
@@ -1184,7 +1184,7 @@
   }
   
   /**
-   * 显示STEP文件信息
+   * Show STEP file info
    */
   function showStepFileInfo(file) {
     const viewer = document.getElementById('model-viewer');
@@ -1193,15 +1193,15 @@
     viewer.innerHTML = `
       <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; text-align: center; color: #666;">
         <div style="font-size: 48px; margin-bottom: 20px;">📐</div>
-        <h3 style="margin: 0 0 10px 0; color: #333;">STEP文件已上传</h3>
-        <p style="margin: 0; font-size: 14px;">文件: ${file.name}</p>
-        <p style="margin: 10px 0 0 0; font-size: 12px; color: #999;">STEP格式需要专业CAD软件查看</p>
+        <h3 style="margin: 0 0 10px 0; color: #333;">STEP uploaded</h3>
+        <p style="margin: 0; font-size: 14px;">File: ${file.name}</p>
+        <p style="margin: 10px 0 0 0; font-size: 12px; color: #999;">STEP preview requires CAD software</p>
       </div>
     `;
   }
   
   /**
-   * 显示不支持的文件信息
+   * Show unsupported file info
    */
   function showUnsupportedFileInfo(file) {
     const viewer = document.getElementById('model-viewer');
@@ -1210,15 +1210,15 @@
     viewer.innerHTML = `
       <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; text-align: center; color: #666;">
         <div style="font-size: 48px; margin-bottom: 20px;">📄</div>
-        <h3 style="margin: 0 0 10px 0; color: #333;">文件已上传</h3>
-        <p style="margin: 0; font-size: 14px;">文件: ${file.name}</p>
-        <p style="margin: 10px 0 0 0; font-size: 12px; color: #999;">此文件格式暂不支持3D预览</p>
+        <h3 style="margin: 0 0 10px 0; color: #333;">File uploaded</h3>
+        <p style="margin: 0; font-size: 14px;">File: ${file.name}</p>
+        <p style="margin: 10px 0 0 0; font-size: 12px; color: #999;">3D preview is not available for this format</p>
       </div>
     `;
   }
   
   /**
-   * 显示错误信息
+   * Show error info
    */
   function showErrorInfo(message) {
     const viewer = document.getElementById('model-viewer');
@@ -1227,14 +1227,14 @@
     viewer.innerHTML = `
       <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; text-align: center; color: #f44336;">
         <div style="font-size: 48px; margin-bottom: 20px;">⚠️</div>
-        <h3 style="margin: 0 0 10px 0; color: #f44336;">加载失败</h3>
+        <h3 style="margin: 0 0 10px 0; color: #f44336;">Load failed</h3>
         <p style="margin: 0; font-size: 14px;">${message}</p>
       </div>
     `;
   }
   
   /**
-   * 初始化文件上传
+   * Initialize file upload
    */
   function initFileUpload() {
     const dropzone = document.getElementById('dropzone');
@@ -1281,7 +1281,7 @@
       scaleValue.textContent = this.value + '%';
     });
     
-    // 备注字符计数
+    // Notes character counter
     const noteTextarea = document.getElementById('note');
     const charCount = document.getElementById('char-count');
     noteTextarea.addEventListener('input', function() {
@@ -1290,7 +1290,7 @@
   }
   
   /**
-   * 初始化表单
+   * Initialize form
    */
   function initForm() {
     const form = document.getElementById('quote-form');
@@ -1299,7 +1299,7 @@
     form.addEventListener('change', updateSubmitButton);
     form.addEventListener('input', updateSubmitButton);
     
-    // 自动填充客户信息
+    // Autofill customer info
     const customerEmail = getCustomerEmail();
     if (customerEmail) {
       document.getElementById('customer-email').value = customerEmail;
@@ -1312,38 +1312,38 @@
   }
   
   /**
-   * 处理选择的文件
+   * Handle selected files
    */
   async function handleFiles(files) {
-    // 验证文件
+    // Validate files
     const validFiles = files.filter(file => {
       const validExtensions = ['.step', '.stp', '.stl', '.obj', '.3ds', '.fbx', '.dae', '.gltf', '.glb', '.dwg', '.dxf', '.pdf'];
       const fileName = file.name.toLowerCase();
       const isValid = validExtensions.some(ext => fileName.endsWith(ext));
       
       if (!isValid) {
-        alert(`不支持的文件格式: ${file.name}`);
+        alert(`Unsupported file format: ${file.name}`);
         return false;
       }
       
       // 验证文件大小（100MB）
       const maxSize = 100 * 1024 * 1024;
       if (file.size > maxSize) {
-        alert(`文件过大: ${file.name} (${formatFileSize(file.size)})`);
+        alert(`File too large: ${file.name} (${formatFileSize(file.size)})`);
         return false;
       }
       
       return true;
     });
     
-    // 添加到已选文件列表
+    // Append to selected files
     selectedFiles = [...selectedFiles, ...validFiles];
     
-    // 更新文件预览
+    // Update preview list
     updateFilePreview();
     updateSubmitButton();
     
-    // 加载第一个3D文件进行预览
+    // Preview the first uploaded file
     if (validFiles.length > 0) {
       const firstFile = validFiles[0];
       await load3DModel(firstFile);
@@ -1351,7 +1351,7 @@
   }
   
   /**
-   * 更新文件预览
+   * Update file preview
    */
   function updateFilePreview() {
     const filePreview = document.getElementById('file-preview');
@@ -1377,14 +1377,14 @@
   }
   
   /**
-   * 选择文件进行预览
+   * Select file for preview
    */
   async function selectFileForPreview(index) {
     if (index >= 0 && index < selectedFiles.length) {
       const file = selectedFiles[index];
       await load3DModel(file);
       
-      // 高亮选中的文件
+      // Highlight selected file
       const fileItems = document.querySelectorAll('.file-item');
       fileItems.forEach((item, i) => {
         if (i === index) {
@@ -1399,7 +1399,7 @@
   }
   
   /**
-   * 移除文件
+   * Remove file
    */
   function removeFile(index) {
     selectedFiles.splice(index, 1);
@@ -1408,7 +1408,7 @@
   }
   
   /**
-   * 获取文件图标
+   * Get file icon
    */
   function getFileIcon(fileName) {
     const ext = fileName.toLowerCase().split('.').pop();
@@ -1421,7 +1421,7 @@
   }
   
   /**
-   * 数量变化
+   * Quantity change
    */
   function changeQuantity(delta) {
     const qtyInput = document.getElementById('quantity');
@@ -1431,12 +1431,12 @@
   }
   
   /**
-   * 更新提交按钮状态
+   * Update submit button state
    */
   function updateSubmitButton() {
     const submitBtn = document.getElementById('submit-btn');
     
-    // 检查必填项
+    // Required fields
     const hasFiles = selectedFiles.length > 0;
     const hasMaterial = document.getElementById('material').value;
     const hasEmail = document.getElementById('customer-email').value;
@@ -1445,11 +1445,11 @@
   }
   
   /**
-   * 提交询价
+   * Submit RFQ
    */
   async function submitQuote() {
     if (selectedFiles.length === 0) {
-      showError('请先上传文件');
+      showError('Please upload your files first.');
       return;
     }
     
@@ -1463,12 +1463,12 @@
     btnLoading.style.display = 'inline';
     
     try {
-      // 获取表单数据
+      // Collect form data
       const formData = getFormData();
       
-      // 验证必填项
+      // Validate required fields
       if (!formData.material || !formData.customerEmail) {
-        throw new Error('请填写所有必填项');
+        throw new Error('Please complete all required fields.');
       }
       
       // 准备所有文件数据
@@ -1487,8 +1487,8 @@
         });
       }
       
-       // 调用 API 提交询价
-       console.log('提交询价数据:', {
+       // Submit to API
+       console.log('Submitting RFQ:', {
          fileName: mainFile.name,
          customerEmail: formData.customerEmail,
          customerName: formData.customerName,
@@ -1558,11 +1558,11 @@
         quoteResult = result;
         showSuccess(result);
       } else {
-        throw new Error(result.message || result.error || '提交失败');
+        throw new Error(result.message || result.error || 'Submission failed');
       }
       
     } catch (error) {
-      console.error('提交询价失败:', error);
+      console.error('RFQ submission failed:', error);
       showError(error.message);
     } finally {
       submitBtn.disabled = false;
@@ -1572,7 +1572,7 @@
   }
   
   /**
-   * 获取表单数据
+   * Get form data
    */
   function getFormData() {
     const form = document.getElementById('quote-form');
@@ -1596,7 +1596,7 @@
   }
   
   /**
-   * 判断是否为 3D 文件
+   * Is 3D file
    */
   function is3DFile(fileName) {
     const ext = fileName.toLowerCase().split('.').pop();
@@ -1604,7 +1604,7 @@
   }
   
   /**
-   * 读取文件为 Base64
+   * Read file as Base64
    */
   function readFileAsBase64(file) {
     return new Promise((resolve, reject) => {
@@ -1616,22 +1616,22 @@
   }
   
   /**
-   * 显示成功消息
+   * Show success message
    */
   function showSuccess(result) {
     const successMessage = document.getElementById('success-message');
     const successText = document.getElementById('success-text');
     
     successText.innerHTML = `
-      询价单号: <strong>${result.quoteId}</strong><br>
-      ${result.message || '我们将尽快为您报价，请留意邮件通知。'}
+      Quote ID: <strong>${result.quoteId}</strong><br>
+      ${result.message || 'We’ll review your files and email you a quote shortly.'}
     `;
     
     successMessage.style.display = 'block';
   }
   
   /**
-   * 查看询价单
+   * View quote
    */
   function viewQuote() {
     if (quoteResult && quoteResult.viewUrl) {
@@ -1640,22 +1640,22 @@
   }
   
   /**
-   * 关闭成功提示
+   * Close success message
    */
   function closeSuccessMessage() {
     const successMessage = document.getElementById('success-message');
     successMessage.style.display = 'none';
     
-    // 重置表单
+    // Reset form
     document.getElementById('quote-form').reset();
     selectedFiles = [];
-    updateFileList();
+    updateFilePreview();
     updateSubmitButton();
     hideError();
   }
   
   /**
-   * 显示错误消息
+   * Show error message
    */
   function showError(message) {
     const errorMessage = document.getElementById('error-message');
@@ -1666,14 +1666,14 @@
   }
   
   /**
-   * 隐藏错误消息
+   * Hide error message
    */
   function hideError() {
     document.getElementById('error-message').style.display = 'none';
   }
   
   /**
-   * 格式化文件大小
+   * Format file size
    */
   function formatFileSize(bytes) {
     if (bytes === 0) return '0 Bytes';
@@ -1684,7 +1684,7 @@
   }
   
   /**
-   * 获取客户邮箱（从 Shopify）
+   * Get customer email (Shopify)
    */
   function getCustomerEmail() {
     if (window.Shopify && window.Shopify.customer && window.Shopify.customer.email) {
@@ -1694,7 +1694,7 @@
   }
   
   /**
-   * 获取客户姓名（从 Shopify）
+   * Get customer name (Shopify)
    */
   function getCustomerName() {
     if (window.Shopify && window.Shopify.customer) {

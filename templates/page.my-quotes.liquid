@@ -1,8 +1,8 @@
 {% comment %}
-  草稿订单详情页
+  Draft Order / Quote Details Page
   URL: /pages/my-quotes?id=<draftOrderId>
-  功能：显示草稿订单详情，客户可以查看报价并点击"立即下单"添加到购物车
-  安全：需要客户登录才能查看
+  Purpose: show draft order details; customer can review quote and proceed to checkout
+  Security: customer must be logged in
 {% endcomment %}
 
 <!-- 客户登录检查 -->
@@ -10,16 +10,16 @@
 <div class="customer-login-required">
   <div class="login-prompt-card">
     <div class="login-prompt-icon">🔒</div>
-    <h2>需要登录</h2>
-    <p>请先登录您的账户以查看您的询价单</p>
+    <h2>Sign in required</h2>
+    <p>Please sign in to view your quotes.</p>
     <div class="login-actions">
       <a href="/account/login?return_url={{ request.path | url_encode }}" class="login-link-btn primary">
         <span class="btn-icon">🔐</span>
-        登录账户
+        Sign in
       </a>
       <a href="/account/register?return_url={{ request.path | url_encode }}" class="login-link-btn secondary">
         <span class="btn-icon">✨</span>
-        注册新账户
+        Create account
       </a>
     </div>
   </div>
@@ -611,7 +611,7 @@
 <div class="quote-detail-container">
   <div id="loading-state" class="loading">
     <div class="loading-spinner"></div>
-    <p>正在加载订单详情...</p>
+    <p>Loading quote details...</p>
   </div>
   
   <div id="error-state" style="display: none;">
@@ -619,8 +619,8 @@
       <p id="error-message"></p>
     </div>
     <div class="quote-actions">
-      <a href="/pages/model-uploader" class="btn btn-secondary">返回上传页面</a>
-      <button id="retry-create-btn" class="btn btn-primary" onclick="retryCreateOrder()" style="display: none;">重新创建订单</button>
+      <a href="/pages/model-uploader" class="btn btn-secondary">Back to upload</a>
+      <button id="retry-create-btn" class="btn btn-primary" onclick="retryCreateOrder()" style="display: none;">Recreate quote</button>
     </div>
   </div>
   
@@ -628,21 +628,21 @@
     <div class="quote-header">
       <div class="quote-title" id="order-number">订单 #--</div>
       <div class="quote-actions">
-        <button id="refreshBtn" class="refresh-btn" onclick="refreshOrderStatus()" title="刷新订单状态">
-          🔄 刷新
+        <button id="refreshBtn" class="refresh-btn" onclick="refreshOrderStatus()" title="Refresh status">
+          🔄 Refresh
         </button>
       </div>
       <div class="quote-meta">
         <div class="quote-meta-item">
-          <strong>状态:</strong>
-          <span class="quote-status" id="order-status">待报价</span>
+          <strong>Status:</strong>
+          <span class="quote-status" id="order-status">Pending</span>
         </div>
         <div class="quote-meta-item">
-          <strong>创建时间:</strong>
+          <strong>Created:</strong>
           <span id="order-date">--</span>
         </div>
         <div class="quote-meta-item">
-          <strong>客户:</strong>
+          <strong>Customer:</strong>
           <span id="customer-name">--</span>
         </div>
       </div>
@@ -652,29 +652,29 @@
     <div id="unprocessable-reason" class="unprocessable-banner" style="display:none;"></div>
     
     <div class="quote-items">
-      <div class="section-title">订单项目</div>
+      <div class="section-title">Line items</div>
       <div id="items-list"></div>
     </div>
     
     <div class="quote-summary">
-      <div class="section-title">费用汇总</div>
+      <div class="section-title">Summary</div>
       <div class="summary-row">
-        <span class="summary-label">小计</span>
+        <span class="summary-label">Subtotal</span>
         <span class="summary-value" id="subtotal">$0.00</span>
       </div>
       <div class="summary-row">
-        <span class="summary-label">运费</span>
-        <span class="summary-value">待确定</span>
+        <span class="summary-label">Shipping</span>
+        <span class="summary-value">TBD</span>
       </div>
       <div class="summary-row">
-        <span class="summary-label summary-total">总计</span>
+        <span class="summary-label summary-total">Total</span>
         <span class="summary-value summary-total" id="total">$0.00</span>
       </div>
     </div>
     
     <div class="quote-actions">
-      <a href="/pages/model-uploader" class="btn btn-secondary">继续上传</a>
-      <button id="place-order-btn" class="btn btn-primary" onclick="placeOrder()">立即下单</button>
+      <a href="/pages/model-uploader" class="btn btn-secondary">Upload another</a>
+      <button id="place-order-btn" class="btn btn-primary" onclick="placeOrder()">Proceed to checkout</button>
     </div>
   </div>
 </div>
@@ -697,7 +697,7 @@ const draftOrderId = urlParams.get('id');
 // 页面加载时获取订单详情
 document.addEventListener('DOMContentLoaded', async function() {
   if (!customerEmail) {
-    showError('未能获取当前账户邮箱，无法加载询价单。请重新登录。');
+    showError('We couldn’t read your account email. Please sign in again.');
     return;
   }
   if (!draftOrderId) {
@@ -715,7 +715,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     }, 30000); // 30秒刷新一次
   } catch (error) {
     console.error('加载订单详情失败:', error);
-    showError('加载订单详情失败: ' + error.message);
+    showError('Failed to load quote: ' + error.message);
   }
 });
 
@@ -758,7 +758,7 @@ async function refreshOrderStatus() {
             renderOrderDetails(newOrder);
             
             // 显示更新通知
-            showSuccessMessage('订单状态已更新！', 3000);
+            showSuccessMessage('Quote updated.', 3000);
           }
         } else {
           // 如果没有当前订单数据，直接加载
@@ -813,7 +813,7 @@ async function loadOrderDetails() {
     
     if (!response.ok) {
       if (response.status === 404) {
-        throw new Error('草稿订单不存在，可能已被删除或从未创建。请重新提交询价。');
+        throw new Error('This quote no longer exists. It may have been deleted. Please submit a new RFQ.');
       }
       throw new Error(`API请求失败: ${response.status}`);
     }
@@ -843,7 +843,7 @@ async function loadOrderDetails() {
 function renderOrderDetails(order) {
   // 更新订单号
   const orderNumberEl = document.getElementById('order-number');
-  orderNumberEl.textContent = `订单 ${order.name || order.id}`;
+  orderNumberEl.textContent = `Quote ${order.name || order.id}`;
   
   // 更新状态
   const statusEl = document.getElementById('order-status');
@@ -883,11 +883,11 @@ function renderOrderDetails(order) {
       unprocessableEl.innerHTML = `
         <div class="unprocessable-banner-title">
           <span class="icon">⚠️</span>
-          <span>该订单当前暂无法加工</span>
+          <span>This quote is currently not manufacturable</span>
         </div>
-        <p><strong>原因：</strong>${finalReason}</p>
-        ${suggestionText ? `<p><strong>修改建议：</strong>${suggestionText}</p>` : ''}
-        <p>如有疑问，请联系平台客服或回复我们的通知邮件。</p>
+        <p><strong>Reason:</strong> ${finalReason}</p>
+        ${suggestionText ? `<p><strong>Suggested changes:</strong> ${suggestionText}</p>` : ''}
+        <p>If you have questions, please contact support or reply to our email.</p>
       `;
       unprocessableEl.style.display = 'block';
     } else {
@@ -908,7 +908,7 @@ function renderOrderDetails(order) {
   
   // 更新客户名称
   const customerEl = document.getElementById('customer-name');
-  customerEl.textContent = order.email || '未知客户';
+  customerEl.textContent = order.email || 'Unknown';
   
   // 渲染订单项目（仅显示 3D 主件，不展示 2D 图纸行）
   const itemsList = document.getElementById('items-list');
@@ -964,37 +964,37 @@ function createItemCard(item) {
   
   card.innerHTML = `
     <div class="item-header">
-      <div class="item-name">${item.title || '未命名项目'}</div>
-      <div class="item-price">${price > 0 ? `$${itemTotal.toFixed(2)}` : '待报价'}</div>
+      <div class="item-name">${item.title || 'Untitled item'}</div>
+      <div class="item-price">${price > 0 ? `$${itemTotal.toFixed(2)}` : 'Pending'}</div>
     </div>
     <div class="item-details">
       <div class="item-detail">
-        <span class="detail-label">数量</span>
+        <span class="detail-label">Qty</span>
         <span>${quantity}</span>
       </div>
       <div class="item-detail">
-        <span class="detail-label">材料</span>
-        <span>${getAttribute('材料') || '未指定'}</span>
+        <span class="detail-label">Material</span>
+        <span>${getAttribute('材料') || 'Not specified'}</span>
       </div>
       <div class="item-detail">
-        <span class="detail-label">颜色与表面</span>
-        <span>${getAttribute('颜色与表面') || '自然色'}</span>
+        <span class="detail-label">Finish</span>
+        <span>${getAttribute('颜色与表面') || 'Natural'}</span>
       </div>
       <div class="item-detail">
-        <span class="detail-label">精度等级</span>
-        <span>${getAttribute('精度等级') || '标准'}</span>
+        <span class="detail-label">Precision</span>
+        <span>${getAttribute('精度等级') || 'Standard'}</span>
       </div>
       <div class="item-detail">
-        <span class="detail-label">公差标准</span>
+        <span class="detail-label">Tolerance</span>
         <span>${getAttribute('公差标准') || 'GB/T 1804-2000 m级'}</span>
       </div>
       <div class="item-detail">
-        <span class="detail-label">表面粗糙度</span>
+        <span class="detail-label">Roughness</span>
         <span>${getAttribute('表面粗糙度') || 'Ra3.2'}</span>
       </div>
       ${getAttribute('备注') ? `
       <div class="item-detail" style="grid-column: 1 / -1;">
-        <span class="detail-label">备注</span>
+        <span class="detail-label">Notes</span>
         <span>${getAttribute('备注')}</span>
       </div>
       ` : ''}
@@ -1021,7 +1021,7 @@ function updatePrices(order) {
     });
   }
   
-  const formattedPrice = subtotal > 0 ? `$${subtotal.toFixed(2)}` : '待报价';
+  const formattedPrice = subtotal > 0 ? `$${subtotal.toFixed(2)}` : 'Pending';
   
   document.getElementById('subtotal').textContent = formattedPrice;
   document.getElementById('total').textContent = formattedPrice;
@@ -1046,7 +1046,7 @@ function updateButtonState(order) {
   // 检查是否为"无法加工"状态
   if (orderStatus === '无法加工') {
     placeOrderBtn.disabled = true;
-    placeOrderBtn.textContent = '无法加工';
+    placeOrderBtn.textContent = 'Not manufacturable';
     placeOrderBtn.style.opacity = '0.6';
     placeOrderBtn.style.cursor = 'not-allowed';
     return;
@@ -1069,12 +1069,12 @@ function updateButtonState(order) {
   
   if (!isQuoted) {
     placeOrderBtn.disabled = true;
-    placeOrderBtn.textContent = '等待报价';
+    placeOrderBtn.textContent = 'Waiting for quote';
     placeOrderBtn.style.opacity = '0.6';
     placeOrderBtn.style.cursor = 'not-allowed';
   } else {
     placeOrderBtn.disabled = false;
-    placeOrderBtn.textContent = '立即下单';
+    placeOrderBtn.textContent = 'Proceed to checkout';
     placeOrderBtn.style.opacity = '1';
     placeOrderBtn.style.cursor = 'pointer';
   }
@@ -1093,12 +1093,12 @@ function getOrderStatus(order) {
       
       if (status === '已报价') {
         return {
-          text: '已报价',
+          text: 'Quoted',
           className: 'status-quoted'
         };
       } else if (status === '无法加工') {
         return {
-          text: '无法加工',
+          text: 'Not manufacturable',
           className: 'status-rejected'
         };
       }
@@ -1110,12 +1110,12 @@ function getOrderStatus(order) {
   
   if (totalPrice > 0) {
     return {
-      text: '已报价',
+      text: 'Quoted',
       className: 'status-quoted'
     };
   } else {
     return {
-      text: '待报价',
+      text: 'Pending',
       className: 'status-pending'
     };
   }
@@ -1127,7 +1127,7 @@ function formatDate(dateString) {
   
   try {
     const date = new Date(dateString);
-    return date.toLocaleString('zh-CN', {
+    return date.toLocaleString('en-US', {
       year: 'numeric',
       month: '2-digit',
       day: '2-digit',
@@ -1145,27 +1145,27 @@ async function placeOrder() {
   const order = window.currentDraftOrder;
   
   if (!order) {
-    alert('订单数据未加载，请刷新页面重试');
+    alert('Quote data is not loaded. Please refresh and try again.');
     return;
   }
   
   const totalPrice = parseFloat(order.totalPrice || 0);
   
   if (totalPrice <= 0) {
-    alert('订单尚未报价，请等待客服报价后再下单');
+    alert('This quote is not priced yet. Please wait until it is quoted.');
     return;
   }
 
   // 如果已有支付链接（可能已生成/已支付），直接跳转，避免重复完成草稿订单
   if (order.invoiceUrl) {
-    if (confirm('检测到该订单已有支付链接，是否直接前往结账？')) {
+    if (confirm('A checkout link already exists for this quote. Continue to checkout?')) {
       window.location.href = order.invoiceUrl;
       return;
     }
   }
   
   // 确认下单
-  if (!confirm(`确认将订单添加到购物车？\n\n总金额: $${totalPrice.toFixed(2)}\n\n点击确定后将跳转到购物车页面。`)) {
+  if (!confirm(`Proceed to checkout?\n\nTotal: $${totalPrice.toFixed(2)}\n\nYou will be redirected to checkout.`)) {
     return;
   }
   
@@ -1234,7 +1234,7 @@ async function placeOrder() {
       }
       
       if (!genericProductId) {
-        alert('系统配置错误：无法获取产品ID。请联系客服完成下单。');
+        alert('Configuration error: unable to resolve product ID. Please contact support.');
         return;
       }
       
@@ -1254,7 +1254,7 @@ async function placeOrder() {
           const completeResult = await completeResponse.json();
           
           if (completeResult.success) {
-            alert(`订单已准备就绪！\n\n订单号：${completeResult.draftOrder.name}\n金额：$${totalPrice}\n\n即将跳转到付款页面...`);
+            alert(`Your order is ready.\n\nOrder: ${completeResult.draftOrder.name}\nAmount: $${totalPrice}\n\nRedirecting to checkout...`);
             
             if (completeResult.draftOrder.invoiceUrl) {
               window.location.href = completeResult.draftOrder.invoiceUrl;
@@ -1273,15 +1273,15 @@ async function placeOrder() {
         
         // 提供备用方案
         const orderInfo = `
-无法自动完成订单，请联系客服完成下单：
+We couldn’t complete this order automatically. Please contact support:
 
-订单详情：
-- 询价单号：${order.name}
-- 客户邮箱：${order.email}
-- 订单金额：$${totalPrice}
-- 文件信息：${order.lineItems?.[0]?.title || '3D模型'}
+Quote details:
+- Quote: ${order.name}
+- Email: ${order.email}
+- Amount: $${totalPrice}
+- File: ${order.lineItems?.[0]?.title || '3D Model'}
 
-客服邮箱：support@example.com
+Support: support@example.com
         `;
         
         alert(orderInfo);
@@ -1291,7 +1291,7 @@ async function placeOrder() {
     
   } catch (error) {
     console.error('下单失败:', error);
-    alert('下单失败: ' + error.message);
+    alert('Checkout failed: ' + error.message);
   }
 }
 
@@ -1313,7 +1313,7 @@ async function loadAllOrders() {
     }
   } catch (error) {
     console.error('加载订单列表失败:', error);
-    showError('加载订单列表失败: ' + error.message);
+    showError('Failed to load quotes: ' + error.message);
   }
 }
 
@@ -1349,8 +1349,8 @@ function renderOrdersList(orders) {
   
   ordersListContainer.innerHTML = `
     <div class="orders-list-header">
-      <h2>我的询价订单</h2>
-      <p>点击订单查看详情</p>
+      <h2>My Quotes</h2>
+      <p>Click a quote to view details</p>
     </div>
     <div class="orders-list">
       ${sortedOrders.map(order => createOrderCard(order)).join('')}
@@ -1373,8 +1373,8 @@ function createOrderCard(order) {
       </div>
       <div class="order-card-body">
         <div class="order-info">
-          <div class="order-date">创建时间: ${date}</div>
-          <div class="order-total">${order.totalPrice ? `$${parseFloat(order.totalPrice).toFixed(2)}` : '待报价'}</div>
+          <div class="order-date">Created: ${date}</div>
+          <div class="order-total">${order.totalPrice ? `$${parseFloat(order.totalPrice).toFixed(2)}` : 'Pending'}</div>
         </div>
         ${order.lineItems && order.lineItems.length > 0 ? `
           <div class="order-items">
@@ -1383,16 +1383,16 @@ function createOrderCard(order) {
                 ${item.title} ${item.quantity > 1 ? `×${item.quantity}` : ''}
               </div>
             `).join('')}
-            ${order.lineItems.length > 2 ? `<div class="order-item-more">...还有${order.lineItems.length - 2}个项目</div>` : ''}
+            ${order.lineItems.length > 2 ? `<div class="order-item-more">...and ${order.lineItems.length - 2} more</div>` : ''}
           </div>
         ` : ''}
       </div>
       <div class="order-card-actions">
         <button class="btn btn-primary" onclick="event.stopPropagation(); viewOrder('${order.id}')">
-          查看详情
+          View
         </button>
         <button class="btn btn-danger" onclick="event.stopPropagation(); deleteOrder('${order.id}')">
-          删除订单
+          Delete
         </button>
       </div>
     </div>
@@ -1406,7 +1406,7 @@ function viewOrder(orderId) {
 
 // 删除订单
 async function deleteOrder(orderId) {
-  if (!confirm('确定要删除这个订单吗？此操作不可撤销。')) {
+  if (!confirm('Delete this quote? This action cannot be undone.')) {
     return;
   }
   
@@ -1426,7 +1426,7 @@ async function deleteOrder(orderId) {
     const data = await response.json();
     
     if (data.success) {
-      showSuccessMessage('订单删除成功！');
+      showSuccessMessage('Quote deleted.');
       // 重新加载订单列表
       setTimeout(() => {
         loadAllOrders();
@@ -1436,7 +1436,7 @@ async function deleteOrder(orderId) {
     }
   } catch (error) {
     console.error('删除订单失败:', error);
-    showError('删除订单失败: ' + error.message);
+    showError('Delete failed: ' + error.message);
   }
 }
 
@@ -1464,10 +1464,10 @@ function showEmptyState() {
   emptyState.innerHTML = `
     <div class="empty-state-content">
       <div class="empty-state-icon">📋</div>
-      <h3>暂无询价订单</h3>
-      <p>您还没有提交过询价请求</p>
+      <h3>No quotes yet</h3>
+      <p>You haven’t submitted an RFQ.</p>
       <a href="/pages/quote-request" class="btn btn-primary">
-        立即询价
+        Request a Quote
       </a>
     </div>
   `;
@@ -1517,7 +1517,7 @@ function showError(message) {
   document.getElementById('error-message').textContent = message;
   
   // 如果是订单不存在错误，显示重新创建按钮
-  if (message.includes('草稿订单不存在') || message.includes('没有草稿订单')) {
+  if (message.includes('草稿订单不存在') || message.includes('没有草稿订单') || message.toLowerCase().includes('no longer exists')) {
     document.getElementById('retry-create-btn').style.display = 'inline-block';
   }
 }
@@ -1530,13 +1530,13 @@ async function retryCreateOrder() {
   
   try {
     // 跳转到上传页面，让用户重新提交
-    alert('订单不存在，将跳转到上传页面重新创建订单。\n\n请重新上传文件并填写配置参数。');
+    alert('This quote does not exist. Redirecting you to upload to create a new RFQ.\n\nPlease re-upload files and fill in the specs.');
     window.location.href = '/pages/model-uploader';
   } catch (error) {
     console.error('重试创建订单失败:', error);
     retryBtn.disabled = false;
-    retryBtn.textContent = '重新创建订单';
-    alert('跳转失败，请手动访问上传页面');
+    retryBtn.textContent = 'Recreate quote';
+    alert('Redirect failed. Please open the upload page manually.');
   }
 }
 
