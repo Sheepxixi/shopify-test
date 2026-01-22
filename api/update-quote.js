@@ -88,8 +88,9 @@ export default async function handler(req, res) {
   const { draftOrderId, amount, note, senderEmail, status } = req.body;
   
   // 验证必填字段
-  // 如果 status 是"无法加工"，amount 可以为 0
-  if (!draftOrderId || (amount === undefined && status !== '无法加工')) {
+  // 如果 status 是"无法加工"或"Not manufacturable"，amount 可以为 0
+  const isNotManufacturable = status === '无法加工' || status === 'Not manufacturable';
+  if (!draftOrderId || (amount === undefined && !isNotManufacturable)) {
     return res.status(400).json({
       error: '缺少必填字段',
       required: ['draftOrderId', 'amount']
@@ -166,34 +167,65 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: '订单中没有商品项' });
     }
     
-    // 根据 status 设置订单状态
-    const orderStatus = status === '无法加工' ? '无法加工' : '已报价';
+    // 根据 status 设置订单状态（支持中英文）
+    const isNotManufacturable = status === '无法加工' || status === 'Not manufacturable';
+    const orderStatus = isNotManufacturable ? '无法加工' : '已报价';
     
     // 设置价格：无法加工时为0，否则使用传入的amount 作为【总价】
     const quantity = firstLineItem.quantity || 1;
     const finalAmount = orderStatus === '无法加工' ? 0 : amount; // 订单总价
-    const unitPrice = orderStatus === '无法加工'
-      ? 0
-      : (amount / quantity); // 平均到每件，避免被数量再次放大
+    
+    // 处理单价：避免浮点数精度问题
+    let unitPrice = 0;
+    if (orderStatus !== '无法加工' && amount !== undefined && amount !== null) {
+      // 将amount转换为字符串，然后进行精确的数值处理
+      const amountStr = typeof amount === 'string' ? amount : amount.toString();
+      const amountNum = parseFloat(amountStr);
+      
+      // 计算单价：如果总价是整数且数量是1，单价保持整数；否则保留足够精度
+      if (quantity === 1) {
+        unitPrice = amountNum; // 数量为1时，单价等于总价，保持原始值
+      } else {
+        // 数量大于1时，需要除法，但保持精度
+        // 先计算，然后根据原始输入是否有小数来决定显示格式
+        const calculated = amountNum / quantity;
+        // 如果原始输入是整数，尝试保持整数（如果除法结果是整数）
+        if (Number.isInteger(amountNum) && Number.isInteger(calculated)) {
+          unitPrice = calculated;
+        } else {
+          // 否则保留足够的小数位，但去除末尾的0
+          unitPrice = parseFloat(calculated.toFixed(10));
+        }
+      }
+    }
     
     // 构建更新后的 lineItems 数组，保留所有 lineItems
     const updatedLineItems = allLineItems.map((lineItem, index) => {
       if (index === 0) {
         // 第一个 lineItem（3D文件）：更新价格和状态属性
+        // 同时设置中英文状态键，确保前端兼容性
+        const statusValue = orderStatus === '无法加工' ? '无法加工' : '已报价';
+        const statusValueEn = orderStatus === '无法加工' ? 'Not manufacturable' : 'Quoted';
+        
         const updatedAttributes = [
           // 保留原有属性（过滤掉状态相关的）
           ...lineItem.customAttributes.filter(attr => 
-            !['状态', '报价金额', '报价时间', '备注', '客服邮箱'].includes(attr.key)
+            !['状态', 'Status', '报价金额', '报价时间', '备注', '客服邮箱'].includes(attr.key)
           ),
-          { key: "状态", value: orderStatus }
+          { key: "状态", value: statusValue },
+          { key: "Status", value: statusValueEn }
         ];
         
         if (orderStatus === '无法加工') {
           // 无法加工时，价格设为0，不设置报价金额
           updatedAttributes.push({ key: "报价时间", value: new Date().toISOString() });
         } else {
-          // 正常报价时，设置报价金额
-          updatedAttributes.push({ key: "报价金额", value: `¥${amount}` });
+          // 正常报价时，设置报价金额（保持原始输入值，避免精度问题）
+          const amountStr = typeof amount === 'string' ? amount : amount.toString();
+          // 如果输入是整数，显示整数；如果有小数，保留原始小数位（去除末尾的0）
+          const amountNum = parseFloat(amountStr);
+          const displayAmount = Number.isInteger(amountNum) ? amountNum.toString() : amountNum.toString().replace(/\.?0+$/, '');
+          updatedAttributes.push({ key: "报价金额", value: `¥${displayAmount}` });
           updatedAttributes.push({ key: "报价时间", value: new Date().toISOString() });
         }
         
@@ -211,7 +243,11 @@ export default async function handler(req, res) {
           title: lineItem.title,
           quantity: lineItem.quantity,
           // Shopify 的 total = originalUnitPrice * quantity，所以这里用总价 / 数量
-          originalUnitPrice: unitPrice.toString(),
+          // 保持精度：如果单价是整数，显示整数；否则保留原始小数位
+          originalUnitPrice: (orderStatus === '无法加工' ? '0' : 
+            (Number.isInteger(unitPrice) 
+              ? unitPrice.toString() 
+              : unitPrice.toString().replace(/\.?0+$/, ''))),
           customAttributes: updatedAttributes
         };
       } else {
@@ -230,7 +266,13 @@ export default async function handler(req, res) {
       lineItems: updatedLineItems, // 包含所有 lineItems，确保2D文件不被删除
       note: orderStatus === '无法加工' 
         ? `无法加工\n时间: ${new Date().toLocaleString('zh-CN')}\n${note || ''}`
-        : `已报价总价: ¥${amount}\n折算单价: ¥${unitPrice.toFixed(2)}\n报价时间: ${new Date().toLocaleString('zh-CN')}\n${note || ''}`
+        : (() => {
+            const amountStr = typeof amount === 'string' ? amount : amount.toString();
+            const amountNum = parseFloat(amountStr);
+            const displayAmount = Number.isInteger(amountNum) ? amountNum.toString() : amountNum.toString().replace(/\.?0+$/, '');
+            const displayUnitPrice = Number.isInteger(unitPrice) ? unitPrice.toString() : unitPrice.toString().replace(/\.?0+$/, '');
+            return `已报价总价: ¥${displayAmount}\n折算单价: ¥${displayUnitPrice}\n报价时间: ${new Date().toLocaleString('zh-CN')}\n${note || ''}`;
+          })()
     };
     
     const updateResult = await shopGql(updateMutation, {
@@ -297,14 +339,15 @@ export default async function handler(req, res) {
         
         await shopGql(updateMetaobjectMutation, {
           id: metaobjectId,
-          metaobject: {
-            fields: [
-              { key: "status", value: orderStatus === '无法加工' ? "无法加工" : "已报价" },
-              { key: "amount", value: (orderStatus === '无法加工' ? 0 : amount).toString() },
-              { key: "note", value: note || '' },
-              { key: "quoted_at", value: new Date().toISOString() }
-            ]
-          }
+            metaobject: {
+              fields: [
+                { key: "status", value: orderStatus === '无法加工' ? "无法加工" : "已报价" },
+                { key: "amount", value: (orderStatus === '无法加工' ? 0 : 
+                  (typeof amount === 'string' ? amount : amount.toString())).toString() },
+                { key: "note", value: note || '' },
+                { key: "quoted_at", value: new Date().toISOString() }
+              ]
+            }
         });
         
       } else {

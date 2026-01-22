@@ -1097,10 +1097,17 @@
   
   // 提交报价
   async function submitQuote() {
-    const amount = document.getElementById('quote-amount').value;
+    const amountInput = document.getElementById('quote-amount').value.trim();
     const note = document.getElementById('quote-note').value;
     
-    if (!amount || parseFloat(amount) <= 0) {
+    if (!amountInput) {
+      alert('Please enter a valid quote amount');
+      return;
+    }
+    
+    // 验证输入是否为有效数字
+    const amountNum = parseFloat(amountInput);
+    if (isNaN(amountNum) || amountNum <= 0) {
       alert('Please enter a valid quote amount');
       return;
     }
@@ -1111,6 +1118,10 @@
     }
     
     try {
+      // 保持原始输入格式：如果是整数，发送整数；如果有小数，保持原始小数位
+      // 这样可以避免浮点数精度问题
+      const amountToSend = amountInput.includes('.') ? amountNum : Math.round(amountNum);
+      
       const response = await fetch(`${API_BASE}/update-quote`, {
         method: 'POST',
         headers: {
@@ -1118,7 +1129,7 @@
         },
         body: JSON.stringify({
           draftOrderId: window.currentQuoteOrderId,
-          amount: parseFloat(amount),
+          amount: amountToSend,
           note: note
         })
       });
