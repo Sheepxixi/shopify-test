@@ -856,7 +856,8 @@ function renderOrderDetails(order) {
   if (status.text === 'Not manufacturable' && order.lineItems && order.lineItems.length > 0) {
     const firstItem = order.lineItems[0];
     const attrs = firstItem.customAttributes || [];
-    const noteAttr = attrs.find(a => a.key === 'Notes' || a.key === '备注');
+    // 查找备注属性（支持中英文键名）
+    const noteAttr = attrs.find(a => a.key === 'Notes' || a.key === '备注' || a.key === 'note');
 
     if (noteAttr && noteAttr.value) {
       // Notes format example:
@@ -869,28 +870,51 @@ function renderOrderDetails(order) {
       let suggestionText = '';
 
       try {
+        // 先尝试从多行格式中提取
         const lines = raw.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
         // Support both English and Chinese labels
         const reasonLine = lines.find(l => /^(Reason|原因)[:：]?\s*/i.test(l));
         const suggestionLine = lines.find(l => /^(Suggested changes?|修改建议|建议)[:：]?\s*/i.test(l));
         if (reasonLine) {
-          reasonText = reasonLine.replace(/^(Reason|原因)[:：]?\s*/i, '');
+          reasonText = reasonLine.replace(/^(Reason|原因)[:：]?\s*/i, '').trim();
         }
         if (suggestionLine) {
-          suggestionText = suggestionLine.replace(/^(Suggested changes?|修改建议|建议)[:：]?\s*/i, '');
+          suggestionText = suggestionLine.replace(/^(Suggested changes?|修改建议|建议)[:：]?\s*/i, '').trim();
         }
-        // If no structured format found, try to extract from "Not manufacturable\n\nReason: ...\nSuggested changes: ..." format
+        
+        // 如果从行中没找到，尝试用正则表达式从整个文本中提取
         if (!reasonText && !suggestionText) {
-          const reasonMatch = raw.match(/(?:Reason|原因)[:：]?\s*(.+?)(?:\n|$)/i);
-          const suggestionMatch = raw.match(/(?:Suggested changes?|修改建议|建议)[:：]?\s*(.+?)(?:\n|$)/i);
-          if (reasonMatch) reasonText = reasonMatch[1].trim();
-          if (suggestionMatch) suggestionText = suggestionMatch[1].trim();
+          // 匹配格式: "Reason: xxx" 或 "原因: xxx"（可能跨行）
+          const reasonMatch = raw.match(/(?:Reason|原因)[:：]?\s*([^\n]+?)(?:\n|$)/i);
+          // 匹配格式: "Suggested changes: xxx" 或 "修改建议: xxx"（可能跨行）
+          const suggestionMatch = raw.match(/(?:Suggested changes?|修改建议|建议)[:：]?\s*([^\n]+?)(?:\n|$)/i);
+          if (reasonMatch && reasonMatch[1]) {
+            reasonText = reasonMatch[1].trim();
+          }
+          if (suggestionMatch && suggestionMatch[1]) {
+            suggestionText = suggestionMatch[1].trim();
+          }
+        }
+        
+        // 如果还是没找到，尝试更宽松的匹配（支持换行）
+        if (!reasonText) {
+          const reasonMatch = raw.match(/(?:Reason|原因)[:：]?\s*([\s\S]+?)(?:\n\s*(?:Suggested|修改|建议)|$)/i);
+          if (reasonMatch && reasonMatch[1]) {
+            reasonText = reasonMatch[1].trim();
+          }
+        }
+        if (!suggestionText) {
+          const suggestionMatch = raw.match(/(?:Suggested changes?|修改建议|建议)[:：]?\s*([\s\S]+?)$/i);
+          if (suggestionMatch && suggestionMatch[1]) {
+            suggestionText = suggestionMatch[1].trim();
+          }
         }
       } catch (e) {
         console.warn('Failed to parse Notes for not-manufacturable banner; using raw text:', e);
       }
 
-      const finalReason = reasonText || raw;
+      // 如果解析失败，使用原始文本（去除开头的 "Not manufacturable" 等）
+      const finalReason = reasonText || raw.replace(/^Not manufacturable[\s\n]*/i, '').replace(/^无法加工[\s\n]*/, '').trim() || raw;
 
       unprocessableEl.innerHTML = `
         <div class="unprocessable-banner-title">
@@ -903,8 +927,15 @@ function renderOrderDetails(order) {
       `;
       unprocessableEl.style.display = 'block';
     } else {
-      unprocessableEl.style.display = 'none';
-      unprocessableEl.innerHTML = '';
+      // 没有找到备注，但仍然显示提示（因为状态是 Not manufacturable）
+      unprocessableEl.innerHTML = `
+        <div class="unprocessable-banner-title">
+          <span class="icon">⚠️</span>
+          <span>This quote is currently not manufacturable</span>
+        </div>
+        <p>This order cannot be manufactured at this time. Please contact support for more information.</p>
+      `;
+      unprocessableEl.style.display = 'block';
     }
   } else {
     // Other statuses: hide banner
