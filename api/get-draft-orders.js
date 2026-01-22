@@ -214,16 +214,17 @@ export default async function handler(req, res) {
         }
       }
 
-      // 从customAttributes中获取状态信息
+      // Get status from customAttributes (support both Chinese and English keys)
       let orderStatus = 'pending';
       if (order.lineItems.edges.length > 0) {
         const firstLineItem = order.lineItems.edges[0].node;
-        const statusAttr = firstLineItem.customAttributes.find(attr => attr.key === '状态');
+        const statusAttr = firstLineItem.customAttributes.find(attr => attr.key === '状态' || attr.key === 'Status');
         if (statusAttr) {
-          if (statusAttr.value === '已报价') {
-            orderStatus = 'quoted'; // 只有"已报价"才归类为已处理状态
+          const statusValue = (statusAttr.value || '').toString().trim();
+          if (statusValue === '已报价' || statusValue === 'Quoted') {
+            orderStatus = 'quoted'; // Only "Quoted" is classified as processed
           }
-          // "无法加工"保持为 pending 状态（未报价）
+          // "无法加工" / "Not manufacturable" stays as pending (not quoted) for statistics
         }
       }
 
