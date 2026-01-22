@@ -2171,7 +2171,7 @@
           </div>
         ` : ''}
         <div style="margin-top: 20px; color: #666; font-size: 14px;">
-          3秒后自动跳转到询价详情页面...
+          You will be automatically redirected to the inquiry details page in 3 seconds...
         </div>
       </div>
     `;
