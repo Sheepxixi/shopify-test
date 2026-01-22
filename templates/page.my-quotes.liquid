@@ -857,23 +857,35 @@ function renderOrderDetails(order) {
     const firstItem = order.lineItems[0];
     const attrs = firstItem.customAttributes || [];
     
-    // 调试：打印所有 customAttributes
+    // 调试：打印所有 customAttributes 和订单信息
     console.log('🔍 Checking for not-manufacturable reason:', {
       status: status.text,
       customAttributes: attrs,
-      orderNote: order.note
+      orderNote: order.note,
+      allAttrs: attrs.map(a => ({ key: a.key, value: a.value }))
     });
     
-    // 查找备注属性（支持中英文键名）
-    const noteAttr = attrs.find(a => a.key === 'Notes' || a.key === '备注' || a.key === 'note');
+    // 查找备注属性（支持中英文键名，包括所有可能的变体）
+    const noteAttr = attrs.find(a => {
+      const key = (a.key || '').toLowerCase();
+      return key === 'notes' || key === '备注' || key === 'note' || 
+             key === '备注信息' || key === '备注内容' || 
+             a.key === 'Notes' || a.key === '备注' || a.key === 'note';
+    });
+    
+    console.log('📝 Found note attribute:', noteAttr);
     
     // 也检查订单级别的 note 字段
     let noteValue = null;
     if (noteAttr && noteAttr.value) {
       noteValue = noteAttr.value;
+      console.log('✅ Using note from customAttributes:', noteValue);
     } else if (order.note) {
       // 如果 customAttributes 中没有，尝试从订单级别的 note 字段读取
       noteValue = order.note;
+      console.log('✅ Using note from order.note:', noteValue);
+    } else {
+      console.warn('⚠️ No note found in customAttributes or order.note');
     }
 
     if (noteValue) {
@@ -931,15 +943,41 @@ function renderOrderDetails(order) {
       }
 
       // 如果解析失败，使用原始文本（去除开头的 "Not manufacturable" 等）
-      const finalReason = reasonText || raw.replace(/^Not manufacturable[\s\n]*/i, '').replace(/^无法加工[\s\n]*/, '').trim() || raw;
+      let finalReason = reasonText;
+      let finalSuggestion = suggestionText;
+      
+      // 如果解析失败，尝试直接显示原始内容
+      if (!finalReason && !finalSuggestion) {
+        // 尝试从原始文本中提取，即使格式不完全匹配
+        const cleanedRaw = raw.replace(/^Not manufacturable[\s\n]*/i, '').replace(/^无法加工[\s\n]*/, '').trim();
+        
+        // 如果包含 "Reason:" 或 "原因:"，提取后面的内容
+        const reasonMatch = cleanedRaw.match(/(?:Reason|原因)[:：]\s*(.+?)(?:\n\s*(?:Suggested|修改|建议)|$)/is);
+        if (reasonMatch) {
+          finalReason = reasonMatch[1].trim();
+        }
+        
+        // 如果包含 "Suggested changes:" 或 "修改建议:"，提取后面的内容
+        const suggestionMatch = cleanedRaw.match(/(?:Suggested changes?|修改建议|建议)[:：]\s*(.+)$/is);
+        if (suggestionMatch) {
+          finalSuggestion = suggestionMatch[1].trim();
+        }
+        
+        // 如果还是没有提取到，直接显示整个内容（去除开头的标识）
+        if (!finalReason && !finalSuggestion) {
+          finalReason = cleanedRaw || raw;
+        }
+      }
+
+      console.log('📋 Final parsed values:', { finalReason, finalSuggestion, raw });
 
       unprocessableEl.innerHTML = `
         <div class="unprocessable-banner-title">
           <span class="icon">⚠️</span>
           <span>This quote is currently not manufacturable</span>
         </div>
-        <p><strong>Reason:</strong> ${finalReason}</p>
-        ${suggestionText ? `<p><strong>Suggested changes:</strong> ${suggestionText}</p>` : ''}
+        ${finalReason ? `<p><strong>Reason:</strong> ${finalReason}</p>` : ''}
+        ${finalSuggestion ? `<p><strong>Suggested changes:</strong> ${finalSuggestion}</p>` : ''}
         <p>If you have questions, please contact support or reply to our email.</p>
       `;
       unprocessableEl.style.display = 'block';
