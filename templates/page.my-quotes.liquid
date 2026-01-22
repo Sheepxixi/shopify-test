@@ -856,16 +856,33 @@ function renderOrderDetails(order) {
   if (status.text === 'Not manufacturable' && order.lineItems && order.lineItems.length > 0) {
     const firstItem = order.lineItems[0];
     const attrs = firstItem.customAttributes || [];
+    
+    // 调试：打印所有 customAttributes
+    console.log('🔍 Checking for not-manufacturable reason:', {
+      status: status.text,
+      customAttributes: attrs,
+      orderNote: order.note
+    });
+    
     // 查找备注属性（支持中英文键名）
     const noteAttr = attrs.find(a => a.key === 'Notes' || a.key === '备注' || a.key === 'note');
-
+    
+    // 也检查订单级别的 note 字段
+    let noteValue = null;
     if (noteAttr && noteAttr.value) {
+      noteValue = noteAttr.value;
+    } else if (order.note) {
+      // 如果 customAttributes 中没有，尝试从订单级别的 note 字段读取
+      noteValue = order.note;
+    }
+
+    if (noteValue) {
       // Notes format example:
       // Not manufacturable
       //
       // Reason: xxx
       // Suggested changes: yyy
-      const raw = noteAttr.value;
+      const raw = noteValue;
       let reasonText = '';
       let suggestionText = '';
 

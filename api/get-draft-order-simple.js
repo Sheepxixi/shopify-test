@@ -94,7 +94,9 @@ const adminWhitelist = (process.env.ADMIN_EMAIL_WHITELIST || 'jonathan.wang@sain
             totalPrice
             status
             createdAt
-            lineItems(first: 5) {
+            invoiceUrl
+            note
+            lineItems(first: 10) {
               edges {
                 node {
                   id
@@ -135,6 +137,7 @@ const adminWhitelist = (process.env.ADMIN_EMAIL_WHITELIST || 'jonathan.wang@sain
                 totalPrice
                 status
                 createdAt
+                note
                 lineItems(first: 5) {
                   edges {
                     node {
@@ -196,6 +199,8 @@ const adminWhitelist = (process.env.ADMIN_EMAIL_WHITELIST || 'jonathan.wang@sain
         status: draftOrder.status === 'INVOICE_SENT' ? 'Quoted' : 'Pending',
         totalPrice: draftOrder.totalPrice,
         createdAt: draftOrder.createdAt,
+        invoiceUrl: draftOrder.invoiceUrl || 'data:stored',
+        note: draftOrder.note || '',
         
         // Keep the lineItems array shape for the frontend
         lineItems: lineItems.map(item => ({
