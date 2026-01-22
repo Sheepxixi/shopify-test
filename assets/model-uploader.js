@@ -683,7 +683,7 @@
       console.log('processFiles completed, processedCount:', processedCount, 'errorCount:', errorCount);
       if (processedCount > 0) {
         console.log('Calling showSuccess and setTimeout for displayFileList');
-        showSuccess(`成功处理 ${processedCount} 个文件！`);
+        showSuccess(`Successfully processed ${processedCount} file(s)!`);
         console.log('showSuccess called, now setting timeout');
         // 延迟显示文件列表，确保DOM元素准备好
         setTimeout(() => {
@@ -703,7 +703,7 @@
       }
 
       if (errorCount > 0) {
-        showWarning(`有 ${errorCount} 个文件处理失败：\n${errors.join('\n')}`);
+        showWarning(`${errorCount} file(s) failed to process:\n${errors.join('\n')}`);
       }
 
       showLoading(false);
@@ -720,7 +720,7 @@
 
     // 检查STL文件并直接拒绝
     if (file.name.toLowerCase().endsWith('.stl')) {
-      throw new Error(`文件"${file.name}"是STL格式，系统仅支持STP/STEP格式文件。STL文件无法转换为STEP文件，请重新导出为STP/STEP格式`);
+      throw new Error(`File "${file.name}" is in STL format. The system only supports STP/STEP format files. STL files cannot be converted to STEP format. Please re-export as STP/STEP format.`);
     }
 
     // 检查文件类型
@@ -779,7 +779,7 @@
           console.log(`Extracted ${extractedCount} files, skipped ${skippedFiles.length} files`);
 
           if (extractedCount === 0) {
-            throw new Error(`ZIP文件中没有找到有效的3D模型文件。支持格式：STP, STEP, STL, OBJ, 3MF, IGES, DWG, DXF, PDF`);
+            throw new Error(`No valid 3D model files found in ZIP. Supported formats: STP, STEP, STL, OBJ, 3MF, IGES, DWG, DXF, PDF`);
           }
 
           // 处理解压出的文件
@@ -789,9 +789,9 @@
 
           // 显示处理结果
           if (skippedFiles.length > 0) {
-            showWarning(`ZIP文件处理完成！成功提取 ${extractedCount} 个文件，跳过 ${skippedFiles.length} 个不支持的文件。`);
+            showWarning(`ZIP file processed! Successfully extracted ${extractedCount} file(s), skipped ${skippedFiles.length} unsupported file(s).`);
           } else {
-            showSuccess(`ZIP文件处理完成！成功提取 ${extractedCount} 个文件。`);
+            showSuccess(`ZIP file processed! Successfully extracted ${extractedCount} file(s).`);
           }
 
         resolve();
@@ -1208,15 +1208,15 @@
     const numericFileId = typeof fileId === 'string' ? parseInt(fileId, 10) : fileId;
     
     if (!fileManager.files.has(numericFileId)) {
-      console.warn('selectFile: 文件不存在', numericFileId, '所有文件ID:', Array.from(fileManager.files.keys()));
+      console.warn('selectFile: File does not exist', numericFileId, 'All file IDs:', Array.from(fileManager.files.keys()));
       return;
     }
 
-    console.log('选择文件:', numericFileId, '类型:', typeof numericFileId, '当前文件:', fileManager.currentFileId);
+    console.log('Select file:', numericFileId, 'Type:', typeof numericFileId, 'Current file:', fileManager.currentFileId);
 
     // 先保存当前文件的配置（如果正在编辑其他文件）
     if (fileManager.currentFileId && fileManager.currentFileId !== numericFileId) {
-      console.log('保存当前文件配置:', fileManager.currentFileId);
+      console.log('Save current file config:', fileManager.currentFileId);
       updateCurrentFileParameters();
     }
 
@@ -1224,11 +1224,11 @@
     const fileData = fileManager.files.get(numericFileId);
     
     if (!fileData) {
-      console.error('selectFile: 文件数据不存在', numericFileId);
+      console.error('selectFile: File data does not exist', numericFileId);
       return;
     }
     
-    console.log('加载文件配置:', numericFileId, fileData.config);
+    console.log('Load file config:', numericFileId, fileData.config);
     
     // 更新参数显示（加载该文件的配置）
     // 使用标志位防止在加载配置时触发保存
@@ -1301,11 +1301,11 @@
     const numericFileId = typeof fileId === 'string' ? parseInt(fileId, 10) : fileId;
     
     if (!fileManager.files.has(numericFileId)) {
-      console.warn('removeFile: 文件不存在', numericFileId, '所有文件ID:', Array.from(fileManager.files.keys()));
+      console.warn('removeFile: File does not exist', numericFileId, 'All file IDs:', Array.from(fileManager.files.keys()));
       return;
     }
     
-    console.log('删除文件:', numericFileId, '类型:', typeof numericFileId);
+    console.log('Remove file:', numericFileId, 'Type:', typeof numericFileId);
 
     const fileData = fileManager.files.get(numericFileId);
     
@@ -1372,22 +1372,22 @@
   function updateCurrentFileParameters() {
     // 如果正在加载文件配置，不执行保存操作
     if (window._isLoadingFileConfig) {
-      console.log('跳过保存：正在加载文件配置');
+      console.log('Skip save: Loading file config');
       return;
     }
 
     if (!fileManager.currentFileId) {
-      console.log('跳过保存：没有当前文件');
+      console.log('Skip save: No current file');
       return;
     }
 
     const fileData = fileManager.files.get(fileManager.currentFileId);
     if (!fileData) {
-      console.log('跳过保存：文件数据不存在');
+      console.log('Skip save: File data does not exist');
       return;
     }
 
-    console.log('保存文件配置:', fileManager.currentFileId, fileData.file.name);
+    console.log('Save file config:', fileManager.currentFileId, fileData.file.name);
 
     // 更新配置
     fileData.config.unit = document.querySelector('input[name="unit"]:checked')?.value || 'mm';
@@ -1412,7 +1412,7 @@
     fileData.config.quantity = parseInt(qtyInput?.value || 1);
     fileData.config.note = noteTextarea?.value || '';
 
-    console.log('已保存配置:', fileData.config);
+    console.log('Config saved:', fileData.config);
 
     // 执行智能验证（仅用于显示提示）
     validateFileConfiguration(fileData);
@@ -1616,7 +1616,7 @@
     const height = (fileData.dimensions.height).toFixed(2);
     const depth = (fileData.dimensions.depth).toFixed(2);
 
-    dimensionsValue.textContent = `${width} x ${height} x ${depth} 毫米`;
+    dimensionsValue.textContent = `${width} x ${height} x ${depth} mm`;
     dimensionsDisplay.style.display = 'block';
   }
 
@@ -1646,7 +1646,7 @@
   // 处理询价提交（统一：勾选为前提，提交所勾选文件到草稿订单）
   function handleAddToCart() {
     if (selectedFileIds.size === 0) {
-      showError('请先勾选要询价的3D文件');
+      showError('Please select 3D file(s) to quote');
       updateBulkButtonState();
       return;
     }
@@ -1667,29 +1667,29 @@
       
       try {
         // 第一步：创建草稿订单
-        console.log('📝 创建草稿订单...');
-        console.log('选中的文件ID:', Array.from(selectedFileIds));
+        console.log('📝 Creating draft order...');
+        console.log('Selected file IDs:', Array.from(selectedFileIds));
         
         const draftOrderId = await submitToDraftOrder();
-        console.log('submitToDraftOrder 返回结果:', draftOrderId);
+        console.log('submitToDraftOrder returned:', draftOrderId);
         
         if (draftOrderId && draftOrderId.trim() !== '') {
           // 成功创建草稿订单，跳转到草稿订单详情页
-          console.log('✅ 草稿订单创建成功，ID:', draftOrderId);
-          showSuccessMessage('询价已提交！正在跳转到订单详情...', 2000);
+          console.log('✅ Draft order created successfully, ID:', draftOrderId);
+          showSuccessMessage('Quote submitted! Redirecting to order details...', 2000);
           setTimeout(() => {
-            console.log('准备跳转到:', `/pages/my-quotes?id=${encodeURIComponent(draftOrderId)}`);
+            console.log('Redirecting to:', `/pages/my-quotes?id=${encodeURIComponent(draftOrderId)}`);
             window.location.href = `/pages/my-quotes?id=${encodeURIComponent(draftOrderId)}`;
           }, 2000);
         } else {
-          console.error('❌ 草稿订单创建失败：未返回有效的订单ID');
-          throw new Error('草稿订单创建失败：未返回有效的订单ID');
+          console.error('❌ Failed to create draft order: No valid order ID returned');
+          throw new Error('Failed to create draft order: No valid order ID returned');
         }
         
       } catch (e) {
         console.error('❌ Draft order submission failed:', e);
-        console.error('❌ 错误堆栈:', e.stack);
-        showError('提交询价失败：' + (e && e.message ? e.message : '未知错误'));
+        console.error('❌ Error stack:', e.stack);
+        showError('Failed to submit quote: ' + (e && e.message ? e.message : 'Unknown error'));
       }
     })();
   }
@@ -1718,23 +1718,23 @@
     try {
       return await getFileBase64(fileData.file);
     } catch (error) {
-      console.error('获取文件数据失败:', error);
+      console.error('Failed to get file data:', error);
       return null;
     }
   }
 
   // 提交到草稿订单（支持 3D + 2D 多文件，每个3D文件创建独立订单）
   async function submitToDraftOrder() {
-    console.log('📝 开始创建草稿订单（每个3D文件独立订单）...');
+    console.log('📝 Starting to create draft orders (one order per 3D file)...');
 
     const API_BASE = (window.QUOTES_API_BASE || 'https://shopify-v587.vercel.app/api').replace(/\/$/, '');
 
     // 1. 获取客户信息
     const customerInfo = await getCustomerInfo();
-    console.log('客户信息:', customerInfo);
+    console.log('Customer info:', customerInfo);
 
     if (!customerInfo || !customerInfo.email || !customerInfo.name) {
-      throw new Error('客户信息不完整，请确保已正确登录或输入客户信息');
+      throw new Error('Customer information is incomplete. Please ensure you are logged in correctly or enter customer information');
     }
 
     // 2. 先保存当前文件的配置（如果正在编辑）
@@ -1744,7 +1744,7 @@
 
     // 3. 辅助：上传单个文件到后端 /api/store-file-real，返回 { fileId, shopifyFileId, shopifyFileUrl, originalFileSize }
     async function uploadToShopifyFiles(file) {
-      console.log('📤 上传文件到 /api/store-file-real:', file.name, file.type, file.size);
+      console.log('📤 Uploading file to /api/store-file-real:', file.name, file.type, file.size);
       const readerResult = await getFileBase64(file); // 现有函数，返回 data:URL
 
       const resp = await fetch(`${API_BASE}/store-file-real`, {
@@ -1759,12 +1759,12 @@
 
       if (!resp.ok) {
         const text = await resp.text();
-        console.error('❌ 上传到 store-file-real 失败:', resp.status, text);
-        throw new Error(`上传文件失败 (${resp.status})`);
+        console.error('❌ Failed to upload to store-file-real:', resp.status, text);
+        throw new Error(`File upload failed (${resp.status})`);
       }
 
       const json = await resp.json();
-      console.log('✅ store-file-real 返回:', json);
+      console.log('✅ store-file-real returned:', json);
       return {
         fileId: json.fileId,
         shopifyFileId: json.shopifyFileId,
@@ -1784,7 +1784,7 @@
       const fileData = fileManager.files.get(fileId);
       if (!fileData || !is3DFile(fileData.file.name)) continue;
 
-      console.log('📦 为 3D 文件创建独立订单:', fileData.file.name);
+      console.log('📦 Creating independent order for 3D file:', fileData.file.name);
 
       const config = fileData.config || {};
       const rule = getSurfaceRule(config.material, config.materialCategory);
@@ -1893,33 +1893,33 @@
           body: JSON.stringify(requestBody),
         });
 
-        console.log(`submit-quote-real 响应状态 (${fileData.file.name}):`, response.status);
+        console.log(`submit-quote-real response status (${fileData.file.name}):`, response.status);
         if (!response.ok) {
           const errorText = await response.text();
-          console.error(`❌ 创建草稿订单失败 (${fileData.file.name}):`, response.status, errorText);
-          throw new Error(`创建草稿订单失败 (${fileData.file.name}): ${response.status} - ${errorText}`);
+          console.error(`❌ Failed to create draft order (${fileData.file.name}):`, response.status, errorText);
+          throw new Error(`Failed to create draft order (${fileData.file.name}): ${response.status} - ${errorText}`);
         }
 
         const result = await response.json();
-        console.log(`✅ 草稿订单创建成功 (${fileData.file.name}):`, result);
+        console.log(`✅ Draft order created successfully (${fileData.file.name}):`, result);
 
         if (result.draftOrderId) {
           draftOrderIds.push(result.draftOrderId);
         } else {
-          console.warn(`⚠️ API 返回结果中没有 draftOrderId (${fileData.file.name}):`, result);
+          console.warn(`⚠️ API response does not contain draftOrderId (${fileData.file.name}):`, result);
         }
       } catch (error) {
-        console.error(`❌ 创建订单失败 (${fileData.file.name}):`, error);
+        console.error(`❌ Failed to create order (${fileData.file.name}):`, error);
         // 继续处理下一个文件，不中断整个流程
         continue;
       }
     }
 
     if (draftOrderIds.length === 0) {
-      throw new Error('没有成功创建任何草稿订单');
+      throw new Error('No draft orders were successfully created');
     }
 
-    console.log(`✅ 成功创建 ${draftOrderIds.length} 个独立订单:`, draftOrderIds);
+    console.log(`✅ Successfully created ${draftOrderIds.length} independent order(s):`, draftOrderIds);
     
     // 返回第一个订单ID（用于跳转）
     return draftOrderIds[0];
@@ -1927,11 +1927,11 @@
 
   // 提交到购物车（第二步：从草稿订单到购物车）
   async function submitToCart() {
-    console.log('🛒 开始添加到购物车...');
+    console.log('🛒 Starting to add to cart...');
     
     // 获取客户信息
     const customerInfo = await getCustomerInfo();
-    console.log('客户信息:', customerInfo);
+    console.log('Customer info:', customerInfo);
     
     // 准备购物车项目
     const cartItems = [];
@@ -1941,7 +1941,7 @@
       const fileData = fileManager.files.get(fileId);
       if (!fileData) continue;
       
-      console.log('处理文件:', fileData.file.name);
+      console.log('Processing file:', fileData.file.name);
       
       // 获取文件配置
       const config = fileData.config || {};
@@ -1978,7 +1978,7 @@
       cartItems.push(cartItem);
     }
     
-    console.log('准备添加到购物车的项目:', cartItems);
+    console.log('Items ready to add to cart:', cartItems);
     
     try {
       // 调用Shopify购物车API
@@ -1994,19 +1994,19 @@
       
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('购物车API响应错误:', errorText);
-        throw new Error(`购物车API调用失败 (${response.status}): ${errorText}`);
+        console.error('Cart API response error:', errorText);
+        throw new Error(`Cart API call failed (${response.status}): ${errorText}`);
       }
       
       const result = await response.json();
-      console.log('添加到购物车成功:', result);
+      console.log('Successfully added to cart:', result);
       
       // 显示成功消息
-      showSuccessMessage('询价提交成功！已添加到购物车。', [
-        '1. 您的询价已提交，请在购物车中查看',
-        '2. 客服将评估您的需求并报价',
-        '3. 报价完成后，您将收到通知',
-        '4. 您可以在购物车中查看最新状态'
+      showSuccessMessage('Quote submitted successfully! Added to cart.', [
+        '1. Your quote has been submitted, please check in cart',
+        '2. Our team will evaluate your requirements and provide a quote',
+        '3. You will receive a notification when the quote is ready',
+        '4. You can check the latest status in your cart'
       ]);
       
       // 延迟跳转到购物车
@@ -2015,7 +2015,7 @@
       }, 3000);
       
     } catch (error) {
-      console.error('添加到购物车失败:', error);
+      console.error('Failed to add to cart:', error);
       throw error;
     }
   }
@@ -2024,23 +2024,23 @@
   async function submitQuoteToDraftOrder() {
     const API_BASE = 'https://shopify-v587.vercel.app/api';  // 请修改为你的实际 Vercel 域名
     
-    console.log('开始提交询价到草稿订单...');
+    console.log('Starting to submit quote to draft order...');
     console.log('API_BASE:', API_BASE);
     
     // 获取客户信息
     const customerInfo = await getCustomerInfo();
-    console.log('客户信息:', customerInfo);
+    console.log('Customer info:', customerInfo);
     
     // 处理每个选中的文件
     for (const fileId of selectedFileIds) {
       const fileData = fileManager.files.get(fileId);
       if (!fileData) continue;
       
-      console.log('处理文件:', fileData.file.name);
+      console.log('Processing file:', fileData.file.name);
       
       // 上传文件并获取文件数据
       const fileUrl = await uploadFileToStorage(fileData.file);
-      console.log('文件上传成功:', fileUrl ? '已获取URL' : 'Base64数据');
+      console.log('File upload successful:', fileUrl ? 'URL obtained' : 'Base64 data');
       
       // 获取文件配置
       const config = fileData.config || {};
@@ -2066,7 +2066,7 @@
         note: config.note || ''
       };
       
-      console.log('API请求数据:', requestData);
+      console.log('API request data:', requestData);
       
       try {
         // 调用草稿订单API
@@ -2078,29 +2078,29 @@
           body: JSON.stringify(requestData)
         });
         
-        console.log('API响应状态:', response.status);
-        console.log('API响应头:', response.headers);
+        console.log('API response status:', response.status);
+        console.log('API response headers:', response.headers);
         
         if (!response.ok) {
           const errorText = await response.text();
-          console.error('API响应错误:', errorText);
-          throw new Error(`API调用失败 (${response.status}): ${errorText}`);
+          console.error('API response error:', errorText);
+          throw new Error(`API call failed (${response.status}): ${errorText}`);
         }
         
       const result = await response.json();
-      console.log('API响应结果:', result);
+      console.log('API response result:', result);
 
       if (!result.success) {
-        throw new Error(result.message || result.error || '提交失败');
+        throw new Error(result.message || result.error || 'Submission failed');
       }
 
-      console.log('询价提交成功:', result);
+      console.log('Quote submitted successfully:', result);
       
       // 显示成功消息和后续步骤
       if (result.nextSteps) {
         showSuccessMessage(result.message, result.nextSteps);
       } else {
-        showSuccessMessage(result.message || '询价提交成功！');
+        showSuccessMessage(result.message || 'Quote submitted successfully!');
       }
       
       // 保存询价单号用于跳转
@@ -2109,15 +2109,15 @@
       }
 
     } catch (error) {
-        console.error('API调用失败:', error);
+        console.error('API call failed:', error);
         
         // 提供更详细的错误信息
         if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
-          throw new Error(`网络连接失败，请检查：
-1. 网络连接是否正常
-2. API服务是否已部署: ${API_BASE}
-3. 域名配置是否正确
-4. 是否有防火墙阻止`);
+          throw new Error(`Network connection failed, please check:
+1. Is the network connection normal?
+2. Is the API service deployed: ${API_BASE}
+3. Is the domain configuration correct?
+4. Is there a firewall blocking?`);
         } else {
           throw error;
         }
@@ -2196,8 +2196,8 @@
       // 否则转换为Base64
       return await readFileAsBase64(file);
     } catch (error) {
-      console.error('文件上传失败:', error);
-      throw new Error('文件上传失败: ' + error.message);
+      console.error('File upload failed:', error);
+      throw new Error('File upload failed: ' + error.message);
     }
   }
 
@@ -2213,7 +2213,7 @@
 
   // 获取客户信息
   async function getCustomerInfo() {
-    console.log('🔍 获取客户信息...');
+    console.log('🔍 Getting customer info...');
     console.log('window.customerState:', window.customerState);
     console.log('window.Shopify:', window.Shopify);
     
@@ -2225,7 +2225,7 @@
       // 验证邮箱格式
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (emailRegex.test(email)) {
-        console.log('✅ 使用 window.customerState 中的客户信息:', { name, email });
+        console.log('✅ Using customer info from window.customerState:', { name, email });
         return { name, email };
       }
     }
@@ -2238,7 +2238,7 @@
       // 验证邮箱格式
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (email && emailRegex.test(email)) {
-        console.log('✅ 使用 Shopify.customer 中的客户信息:', { 
+        console.log('✅ Using customer info from Shopify.customer:', { 
           name: customer.firstName || 'Shopify客户', 
           email 
         });
@@ -2524,29 +2524,29 @@
                 if (uploadResponse.ok) {
                   const uploadResult = await uploadResponse.json();
                   invoiceUrl = uploadResult.fileUrl;
-                  console.log('文件上传成功:', uploadResult);
+                  console.log('File upload successful:', uploadResult);
                 } else {
-                  console.warn('文件上传失败，标记为上传失败');
+                  console.warn('File upload failed, marked as upload failed');
                   invoiceUrl = 'data:upload_failed';
                 }
               } catch (uploadError) {
-                console.warn('文件上传异常:', uploadError);
+                console.warn('File upload exception:', uploadError);
                 invoiceUrl = 'data:upload_failed';
               }
             };
             reader.readAsDataURL(fileData.file);
             invoiceUrl = 'data:uploading';
           } catch (error) {
-            console.warn('生成文件数据失败:', error);
+            console.warn('Failed to generate file data:', error);
             invoiceUrl = 'data:processing_error';
           }
         } else if (!invoiceUrl.startsWith('http://') && !invoiceUrl.startsWith('https://')) {
           // 如果不是标准URL，使用占位符
-          console.log('非标准URL，标记为无效');
+          console.log('Non-standard URL, marked as invalid');
           invoiceUrl = 'data:invalid_url';
         }
       } catch (error) {
-        console.warn('文件处理异常:', error);
+        console.warn('File processing exception:', error);
         invoiceUrl = 'data:processing_error';
       }
       
@@ -2586,21 +2586,21 @@
         let value = String(payload[key] || '');
         // 限制字段长度，避免超过 2048 字符限制
         if (value.length > 2048) {
-          console.warn(`字段 ${key} 长度超限 (${value.length} > 2048)，将被截断`);
+          console.warn(`Field ${key} length exceeds limit (${value.length} > 2048), will be truncated`);
           value = value.substring(0, 2048);
         }
         payload[key] = value;
       });
       
-      console.log('正在同步到 Vercel 后端:', payload);
-      console.log('请求 URL:', `${base}/quotes`);
-      console.log('客户信息:', { customerName, customerEmail });
+      console.log('Syncing to Vercel backend:', payload);
+      console.log('Request URL:', `${base}/quotes`);
+      console.log('Customer info:', { customerName, customerEmail });
       console.log('window.customerState:', window.customerState);
       console.log('window.Shopify:', window.Shopify);
       
       // 调试：显示每个字段的长度
       Object.keys(payload).forEach(key => {
-        console.log(`字段 ${key} 长度: ${payload[key].length} 字符`);
+        console.log(`Field ${key} length: ${payload[key].length} characters`);
       });
       
       const res = await fetch(`${base}/quotes`, {
@@ -2613,22 +2613,22 @@
         body: JSON.stringify(payload)
       });
       
-      console.log('Vercel 后端响应状态:', res.status);
-      console.log('响应头:', Object.fromEntries(res.headers.entries()));
+      console.log('Vercel backend response status:', res.status);
+      console.log('Response headers:', Object.fromEntries(res.headers.entries()));
       
       if (!res.ok) {
         const errorText = await res.text();
-        console.error('同步到 Vercel 后端失败：', res.status, errorText);
-        console.error('请求数据:', JSON.stringify(payload, null, 2));
+        console.error('Failed to sync to Vercel backend:', res.status, errorText);
+        console.error('Request data:', JSON.stringify(payload, null, 2));
         // 显示详细错误给用户
         showNotification(`同步到后台失败 (${res.status}): ${errorText}`, 'error');
       } else {
         const result = await res.text();
-        console.log('同步到 Vercel 后端成功:', result);
+        console.log('Successfully synced to Vercel backend:', result);
         showNotification('询价已提交，客服将尽快处理', 'success');
       }
     } catch (err) {
-      console.error('同步到 Vercel 后端异常：', err);
+      console.error('Exception syncing to Vercel backend:', err);
       showNotification('网络错误，询价可能未同步到后台', 'warning');
     }
   }
@@ -3138,7 +3138,7 @@
         // 检查是否有验证错误
         if (fileManager.files.size === 0) {
           event.preventDefault();
-          showError('请先上传3D模型文件');
+          showError('Please upload a 3D model file first');
           return false;
         }
         
@@ -3167,7 +3167,7 @@
         // 检查是否有验证错误
         if (fileManager.files.size === 0) {
           event.preventDefault();
-          showError('请先上传3D模型文件');
+          showError('Please upload a 3D model file first');
           return false;
         }
         
@@ -3400,7 +3400,7 @@
     return new Promise((resolve) => {
       // 检查是否有管理员登录
       if (window.loginManager && window.loginManager.hasAdminAccess()) {
-        showError('检测到管理员已登录，请先退出管理员登录后再进行客户操作');
+        showError('Admin account detected. Please log out from admin account before customer operations');
         resolve(false);
         return;
       }
@@ -3430,7 +3430,7 @@
       modal.style.cssText = 'width:min(520px,90vw);background:#fff;border-radius:12px;box-shadow:0 10px 40px rgba(0,0,0,.2);overflow:hidden;';
       const header = document.createElement('div');
       header.style.cssText = 'padding:16px 20px;border-bottom:1px solid #eee;font-weight:600;';
-      header.textContent = '完成账户信息后继续';
+      header.textContent = 'Complete account information to continue';
       const body = document.createElement('div');
       body.style.cssText = 'padding:16px 20px;display:flex;flex-direction:column;gap:12px;font-size:14px;color:#333;';
       const actions = document.createElement('div');
@@ -3440,17 +3440,17 @@
       const needAddress = !state.hasAddress;
       if (needLogin) {
         const p = document.createElement('div');
-        p.innerHTML = '您还未登录，请先登录账户。';
+        p.innerHTML = 'You are not logged in. Please log in to your account first.';
         body.appendChild(p);
       }
       if (needAddress) {
         const p = document.createElement('div');
-        p.innerHTML = '请先添加账单地址，以便我们处理询价和后续沟通。';
+        p.innerHTML = 'Please add a billing address so we can process your quote and communicate with you.';
         body.appendChild(p);
       }
 
       const btnCancel = document.createElement('button');
-      btnCancel.textContent = '稍后再说';
+      btnCancel.textContent = 'Later';
       btnCancel.style.cssText = 'background:#f5f5f5;border:1px solid #ddd;border-radius:6px;padding:8px 14px;cursor:pointer;';
       btnCancel.onclick = () => { document.body.removeChild(overlay); resolve(false); };
 
@@ -3603,7 +3603,7 @@
     const ids = Array.from(fileIds);
     if (ids.length === 0) {
       const empty = document.createElement('div');
-      empty.textContent = '未勾选文件';
+      empty.textContent = 'No files selected';
       body.appendChild(empty);
       return;
     }
@@ -3662,9 +3662,9 @@
         await window.emailNotificationSystem.sendInternalNotification(orderData);
       }
 
-      console.log('询价通知已发送:', orderData);
+      console.log('Quote notification sent:', orderData);
     } catch (error) {
-      console.error('发送询价通知失败:', error);
+      console.error('Failed to send quote notification:', error);
     }
   }
 })();

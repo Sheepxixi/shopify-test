@@ -705,7 +705,7 @@
       document.getElementById('admin-content').style.display = 'none';
       const warn = document.createElement('div');
       warn.style.cssText = 'padding:40px;text-align:center;color:#c00;font-size:16px;';
-      warn.innerHTML = '请先登录管理员账户后访问此页面。';
+      warn.innerHTML = 'Please log in to an admin account before accessing this page.';
       document.body.prepend(warn);
       return;
     }
@@ -716,7 +716,7 @@
       document.getElementById('admin-content').style.display = 'none';
       const warn = document.createElement('div');
       warn.style.cssText = 'padding:40px;text-align:center;color:#c00;font-size:16px;';
-      warn.innerHTML = '当前账户无权限访问草稿订单管理。';
+      warn.innerHTML = 'Current account does not have permission to access draft order management.';
       document.body.prepend(warn);
       return;
     }
@@ -803,7 +803,7 @@
       const response = await fetch(`${API_BASE}/get-draft-orders?admin=1&email=${encodeURIComponent(customerEmail)}`);
       
       if (!response.ok) {
-        throw new Error(`API调用失败: ${response.status}`);
+        throw new Error(`API call failed: ${response.status}`);
       }
       
       const data = await response.json();
@@ -1012,7 +1012,7 @@
           </button>
           ${order.status === 'pending' ? `
             <button class="action-btn quote" onclick="openQuoteModal('${order.id}', '${order.email}', '${order.name}')">
-              💰 添加报价
+              💰 Add Quote
             </button>
             <button class="action-btn reject" onclick="markAsUnprocessable('${order.id}', '${order.email}', '${order.name}')" title="Mark as not manufacturable">
               ⚠️ Not manufacturable
@@ -1084,12 +1084,12 @@
     const note = document.getElementById('quote-note').value;
     
     if (!amount || parseFloat(amount) <= 0) {
-      alert('请输入有效的报价金额');
+      alert('Please enter a valid quote amount');
       return;
     }
     
     if (!window.currentQuoteOrderId) {
-      alert('订单ID丢失，请重新操作');
+      alert('Order ID is missing, please try again');
       return;
     }
     
@@ -1109,16 +1109,16 @@
       const data = await response.json();
       
       if (data.success) {
-        alert('报价提交成功！');
+        alert('Quote submitted successfully!');
         closeQuoteModal();
-        loadOrders(); // 重新加载订单列表
+        loadOrders(); // Reload order list
       } else {
-        alert('报价提交失败: ' + (data.message || '未知错误'));
+        alert('Failed to submit quote: ' + (data.message || 'Unknown error'));
       }
       
     } catch (error) {
-      console.error('报价提交失败:', error);
-      alert('报价提交失败: ' + error.message);
+      console.error('Failed to submit quote:', error);
+      alert('Failed to submit quote: ' + error.message);
     }
   }
   
@@ -1218,11 +1218,11 @@
     try {
       const order = currentOrders.find(o => o.id === orderId);
       if (!order) {
-        alert('未找到订单信息');
+        alert('Order information not found');
         return;
       }
       if (!order.lineItems || order.lineItems.length === 0) {
-        alert('订单中没有商品信息');
+        alert('No product information in order');
         return;
       }
 
@@ -1286,25 +1286,25 @@
       // 如果检测到的文件数量少于 lineItems 数量，显示提示
       if (filesToDownload.length < totalLineItems && totalLineItems > 1) {
         const skippedCount = totalLineItems - filesToDownload.length;
-        alert(`⚠️ 订单中有 ${totalLineItems} 个商品，但只找到 ${filesToDownload.length} 个可下载的文件。\n\n有 ${skippedCount} 个商品没有文件标识符，已跳过。`);
+        alert(`⚠️ Order has ${totalLineItems} items, but only found ${filesToDownload.length} downloadable file(s).\n\n${skippedCount} item(s) have no file identifier and were skipped.`);
       }
 
       if (filesToDownload.length === 0) {
-        alert('未找到可下载的文件');
+        alert('No downloadable files found');
         return;
       }
 
       // 显示下载确认提示
       if (filesToDownload.length > 1) {
         const fileList = filesToDownload.map((f, idx) => `  ${idx + 1}. ${f.fileName}`).join('\n');
-        const confirmMsg = `检测到 ${filesToDownload.length} 个文件，将逐个下载：\n\n${fileList}\n\n浏览器可能会询问是否允许多个下载，请点击"允许"。\n\n是否继续？`;
+        const confirmMsg = `Detected ${filesToDownload.length} file(s), will download one by one:\n\n${fileList}\n\nThe browser may ask for permission to allow multiple downloads, please click "Allow".\n\nContinue?`;
         if (!confirm(confirmMsg)) {
           return;
         }
       } else {
         // 单个文件也显示提示
-        const singleFileMsg = `准备下载文件：${filesToDownload[0].fileName}`;
-        if (!confirm(singleFileMsg + '\n\n是否继续？')) {
+        const singleFileMsg = `Ready to download file: ${filesToDownload[0].fileName}`;
+        if (!confirm(singleFileMsg + '\n\nContinue?')) {
           return;
         }
       }
@@ -1348,10 +1348,10 @@
                   await new Promise(resolve => setTimeout(resolve, 500));
                   continue;
                 } catch (fallbackError) {
-                  throw new Error(`API下载失败(${response.status})，降级方案也失败`);
+                  throw new Error(`API download failed (${response.status}), fallback also failed`);
                 }
               }
-              throw new Error(`下载失败: HTTP ${response.status}`);
+              throw new Error(`Download failed: HTTP ${response.status}`);
             }
             
             // 读取文件内容为 blob
@@ -1385,19 +1385,19 @@
       if (downloadStats.failed > 0) {
         setTimeout(() => {
           if (downloadStats.total > 1) {
-            let summaryMsg = `❌ 部分文件下载失败\n\n总计: ${downloadStats.total} 个文件\n成功: ${downloadStats.success} 个\n失败: ${downloadStats.failed} 个`;
-            summaryMsg += `\n\n失败的文件：\n${downloadStats.failedFiles.map(f => `  • ${f.fileName}: ${f.error}`).join('\n')}`;
-            summaryMsg += `\n\n如果某些文件没有下载，请检查浏览器的下载设置，确保允许多个下载。`;
+            let summaryMsg = `❌ Some files failed to download\n\nTotal: ${downloadStats.total} file(s)\nSuccess: ${downloadStats.success}\nFailed: ${downloadStats.failed}`;
+            summaryMsg += `\n\nFailed files:\n${downloadStats.failedFiles.map(f => `  • ${f.fileName}: ${f.error}`).join('\n')}`;
+            summaryMsg += `\n\nIf some files were not downloaded, please check your browser's download settings to ensure multiple downloads are allowed.`;
             alert(summaryMsg);
           } else {
             // 单个文件失败
-            alert(`❌ 文件下载失败：${filesToDownload[0].fileName}\n\n错误：${downloadStats.failedFiles[0]?.error || '未知错误'}`);
+            alert(`❌ File download failed: ${filesToDownload[0].fileName}\n\nError: ${downloadStats.failedFiles[0]?.error || 'Unknown error'}`);
           }
         }, 1000);
       }
     } catch (error) {
-      console.error('下载文件失败:', error);
-      alert('下载文件失败: ' + error.message);
+      console.error('Failed to download file:', error);
+      alert('Failed to download file: ' + error.message);
     }
   }
 
@@ -1444,15 +1444,15 @@
           window.URL.revokeObjectURL(downloadUrl);
           return;
         } else {
-          throw new Error(`API下载失败: ${response.status}`);
+          throw new Error(`API download failed: ${response.status}`);
         }
       }
       
-      throw new Error('没有可用的文件数据或URL');
+      throw new Error('No available file data or URL');
       
     } catch (error) {
-      console.error('downloadFile失败:', error);
-      alert('文件下载失败: ' + error.message);
+      console.error('downloadFile failed:', error);
+      alert('File download failed: ' + error.message);
     }
   }
 
@@ -1463,7 +1463,7 @@
     try {
       const order = currentOrders.find(o => o.id === orderId);
       if (!order) {
-        alert('未找到订单信息');
+        alert('Order information not found');
         return;
       }
 
@@ -1641,43 +1641,43 @@
       });
       
     } catch (error) {
-      console.error('预览文件失败:', error);
-      alert('预览文件失败: ' + error.message);
+      console.error('Failed to preview file:', error);
+      alert('Failed to preview file: ' + error.message);
     }
   }
 
   // 显示客户操作指南
   function showCustomerGuide(orderId, email) {
     const order = currentOrders.find(o => o.id === orderId);
-    const customerEmail = email || order?.email || '未提供';
+    const customerEmail = email || order?.email || 'Not provided';
     
     const guideContent = `
       <div style="padding: 20px;">
         <div style="margin-bottom: 20px;">
-          <div style="margin-bottom: 8px;"><strong>1. 联系客户</strong></div>
+          <div style="margin-bottom: 8px;"><strong>1. Contact Customer</strong></div>
           <div style="margin-left: 16px; margin-bottom: 12px;">
-            请通过以下方式联系客户：<br>
-            📧 邮箱：${customerEmail}<br>
-            📱 电话或其他联系方式
+            Please contact the customer through:<br>
+            📧 Email: ${customerEmail}<br>
+            📱 Phone or other contact methods
           </div>
           
-          <div style="margin-bottom: 8px;"><strong>2. 告知客户操作步骤</strong></div>
+          <div style="margin-bottom: 8px;"><strong>2. Inform Customer Steps</strong></div>
           <div style="margin-left: 16px; margin-bottom: 12px;">
-            • 访问询价页面查看最新状态<br>
-            • 如果已报价，点击"立即下单"按钮<br>
-            • 完成支付流程<br>
-            • 或直接联系客服确认
+            • Visit the quote page to check the latest status<br>
+            • If quoted, click the "Place Order" button<br>
+            • Complete the payment process<br>
+            • Or contact customer service directly
           </div>
           
-          <div style="margin-bottom: 8px;"><strong>3. 系统说明</strong></div>
+          <div style="margin-bottom: 8px;"><strong>3. System Instructions</strong></div>
           <div style="margin-left: 16px; color: #666; font-size: 13px;">
-            客户可以通过询价页面实时查看报价状态和下单。
+            Customers can view quote status and place orders in real-time on the quote page.
           </div>
         </div>
         
         <div style="background: #e3f2fd; padding: 12px; border-radius: 6px; border-left: 4px solid #1976d2;">
           <p style="margin: 0; color: #1976d2; font-size: 14px;">
-            <strong>建议：</strong>完成报价后，主动联系客户确认并指导操作。
+            <strong>Recommendation:</strong> After completing the quote, proactively contact the customer to confirm and guide them through the process.
           </p>
         </div>
       </div>
@@ -1740,7 +1740,7 @@
 
   // 删除报价
   async function deleteQuote(orderId) {
-    if (!confirm('确定要删除这个询价单吗？此操作不可撤销。')) {
+    if (!confirm('Are you sure you want to delete this quote? This action cannot be undone.')) {
       return;
     }
 
@@ -1772,15 +1772,15 @@
       const data = await response.json();
 
       if (data.success) {
-        alert('询价单删除成功！');
-        loadOrders(); // 重新加载订单列表
+        alert('Quote deleted successfully!');
+        loadOrders(); // Reload order list
       } else {
-        alert('删除失败: ' + (data.message || '未知错误'));
+        alert('Delete failed: ' + (data.message || 'Unknown error'));
       }
 
     } catch (error) {
-      console.error('删除询价单失败:', error);
-      alert('删除失败: ' + error.message);
+      console.error('Failed to delete quote:', error);
+      alert('Delete failed: ' + error.message);
     }
   }
 </script>
