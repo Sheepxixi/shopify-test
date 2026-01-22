@@ -866,26 +866,51 @@ function renderOrderDetails(order) {
     });
     
     // 查找备注属性（支持中英文键名，包括所有可能的变体）
+    // 优先查找中文"备注"键，因为这是实际保存的键名
     const noteAttr = attrs.find(a => {
+      const key = a.key || '';
+      // 优先匹配中文"备注"
+      return key === '备注';
+    }) || attrs.find(a => {
       const key = (a.key || '').toLowerCase();
-      return key === 'notes' || key === '备注' || key === 'note' || 
-             key === '备注信息' || key === '备注内容' || 
-             a.key === 'Notes' || a.key === '备注' || a.key === 'note';
+      // 其次匹配其他可能的键名
+      return key === 'notes' || key === 'note' || 
+             key === '备注信息' || key === '备注内容';
     });
     
     console.log('📝 Found note attribute:', noteAttr);
+    console.log('📝 All attributes with "备注" or "Notes":', 
+      attrs.filter(a => {
+        const key = (a.key || '').toLowerCase();
+        return key.includes('备注') || key.includes('note');
+      }).map(a => ({ key: a.key, value: a.value, valueLength: (a.value || '').length }))
+    );
     
     // 也检查订单级别的 note 字段
     let noteValue = null;
-    if (noteAttr && noteAttr.value) {
+    if (noteAttr && noteAttr.value && noteAttr.value.trim()) {
       noteValue = noteAttr.value;
       console.log('✅ Using note from customAttributes:', noteValue);
-    } else if (order.note) {
+    } else if (order.note && order.note.trim()) {
       // 如果 customAttributes 中没有，尝试从订单级别的 note 字段读取
       noteValue = order.note;
       console.log('✅ Using note from order.note:', noteValue);
     } else {
-      console.warn('⚠️ No note found in customAttributes or order.note');
+      // 如果都没找到，尝试查找所有包含备注的键
+      const allNoteAttrs = attrs.filter(a => {
+        const key = (a.key || '').toLowerCase();
+        return key.includes('备注') || key.includes('note');
+      });
+      console.warn('⚠️ No valid note found. All note-related attributes:', allNoteAttrs);
+      
+      // 尝试从所有可能的备注键中找到一个有值的
+      for (const attr of allNoteAttrs) {
+        if (attr.value && attr.value.trim()) {
+          noteValue = attr.value;
+          console.log('✅ Found note in alternative attribute:', attr.key, noteValue);
+          break;
+        }
+      }
     }
 
     if (noteValue) {
