@@ -187,6 +187,19 @@ export default async function handler(req, res) {
       })
     });
 
+    // 检查 HTTP 响应状态
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Shopify API HTTP错误:', {
+        status: response.status,
+        statusText: response.statusText,
+        body: errorText,
+        storeDomain,
+        hasToken: !!accessToken
+      });
+      throw new Error(`Shopify API请求失败: ${response.status} ${response.statusText}`);
+    }
+
     const data = await response.json();
 
     if (data.errors) {
