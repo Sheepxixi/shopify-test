@@ -683,7 +683,8 @@
 // API config
 const API_BASE = 'https://shopify-v587.vercel.app/api';
 const customerEmail = (document.querySelector('.customer-authenticated')?.dataset.customerEmail || '').toLowerCase();
-const ADMIN_EMAILS = ['jonathan.wang@sainstore.com', 'issac.yu@sainstore.com','kitto.chen@sainstore.com','cherry@sain3.com', 'keihen.luo@sain3.com','nancy.lin@sainstore.com'];
+// 使用全局变量 window.ADMIN_EMAILS（在 theme.liquid 中已定义）
+const ADMIN_EMAILS = window.ADMIN_EMAILS || [];
 const isAdmin = ADMIN_EMAILS.some(e => e.toLowerCase() === customerEmail);
 const authParams = () => isAdmin
   ? `admin=1&email=${encodeURIComponent(customerEmail)}`

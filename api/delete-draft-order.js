@@ -24,31 +24,16 @@
  * }
  */
 
-function parseAdminList() {
-  const raw = process.env.ADMIN_EMAIL_WHITELIST || 'jonathan.wang@sainstore.com,issac.yu@sainstore.com,kitto.chen@sainstore.com,cherry@sain3.com, keihen.luo@sain3.com,nancy.lin@sainstore.com';;
-  return raw.split(',').map(e => e.trim().toLowerCase()).filter(Boolean);
-}
-
-import { setCorsHeaders } from '../utils/cors-config.js';
+import { handleCors, getAdminEmails } from '../utils/cors-config.js';
 
 export default async function handler(req, res) {
-  // 设置CORS头 - 使用统一配置
-  setCorsHeaders(req, res, 'POST,DELETE,OPTIONS');
-
-  if (req.method === 'OPTIONS') {
-    res.status(200).end();
-    return;
-  }
-
-  // 只接受POST/DELETE请求
-  if (req.method !== 'DELETE' && req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
+  // 统一处理 CORS：设置头、处理 OPTIONS、验证方法
+  if (handleCors(req, res, 'POST,DELETE')) return;
 
   try {
     const { draftOrderId, email, admin } = req.body || {};
     const requesterEmail = (email || '').trim().toLowerCase();
-    const adminList = parseAdminList();
+    const adminList = getAdminEmails();
     const isAdminRequest = ['1','true','yes'].includes((admin || '').toString().toLowerCase()) && adminList.includes(requesterEmail);
 
     if (!draftOrderId) {

@@ -25,18 +25,11 @@ async function shopGql(query, variables) {
   return json;
 }
 
-import { setCorsHeaders } from '../utils/cors-config.js';
+import { handleCors } from '../utils/cors-config.js';
 
 export default async function handler(req, res) {
-  setCorsHeaders(req, res);
-  
-  if (req.method === 'OPTIONS') {
-    return res.status(204).end();
-  }
-
-  if (req.method !== 'GET') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
+  // 统一处理 CORS：设置头、处理 OPTIONS、验证方法
+  if (handleCors(req, res, 'GET')) return;
 
   try {
     const { id, shopifyFileId, shopifyFileUrl, fileName: requestedFileName } = req.query;

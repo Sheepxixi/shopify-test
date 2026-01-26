@@ -33,31 +33,21 @@
  * }
  */
 
-import { setCorsHeaders } from '../utils/cors-config.js';
+import { handleCors } from '../utils/cors-config.js';
 
 const API_BASE_URL = process.env.API_BASE_URL || 'https://shopify-v587.vercel.app';
 
 export default async function handler(req, res) {
-  setCorsHeaders(req, res);
-
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
-
+  // 统一处理 CORS：设置头、处理 OPTIONS、验证方法
+  // 注意：这个 API 支持 GET 和 POST
+  if (handleCors(req, res, 'GET,POST')) return;
+  
   if (req.method === 'GET') {
     return res.status(200).json({
       success: true,
       message: 'submit-quote-real API is healthy',
       method: 'GET',
       timestamp: new Date().toISOString(),
-    });
-  }
-
-  if (req.method !== 'POST') {
-    return res.status(405).json({
-      success: false,
-      error: 'method_not_allowed',
-      message: 'Only GET / POST / OPTIONS are supported',
     });
   }
 

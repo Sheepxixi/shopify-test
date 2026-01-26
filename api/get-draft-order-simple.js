@@ -34,28 +34,17 @@ async function shopGql(query, variables) {
   return json;
 }
 
-import { setCorsHeaders } from '../utils/cors-config.js';
+import { handleCors, getAdminEmails } from '../utils/cors-config.js';
 
 export default async function handler(req, res) {
-  // 设置CORS头 - 使用统一配置
-  setCorsHeaders(req, res, 'GET,OPTIONS');
-  
-  if (req.method === 'OPTIONS') {
-    return res.status(204).end();
-  }
-  
-  if (req.method !== 'GET') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
+  // 统一处理 CORS：设置头、处理 OPTIONS、验证方法
+  if (handleCors(req, res, 'GET')) return;
   
   const { id, email, admin } = req.query;
   const customerEmail = (email || '').trim().toLowerCase();
 
-// Admin allowlist
-const adminWhitelist = (process.env.ADMIN_EMAIL_WHITELIST || 'jonathan.wang@sainstore.com,issac.yu@sainstore.com,kitto.chen@sainstore.com,cherry@sain3.com, keihen.luo@sain3.com,nancy.lin@sainstore.com')
-    .split(',')
-    .map(e => e.trim().toLowerCase())
-    .filter(Boolean);
+  // Admin allowlist - 使用统一配置
+  const adminWhitelist = getAdminEmails();
   const isAdminRequest = ['1', 'true', 'yes'].includes((admin || '').toString().toLowerCase()) &&
     adminWhitelist.includes(customerEmail);
   

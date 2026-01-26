@@ -1,6 +1,6 @@
 import { Blob } from 'buffer';
 import FormData from 'form-data';
-import { setCorsHeaders } from '../utils/cors-config.js';
+import { handleCors } from '../utils/cors-config.js';
 
 // 统一判断文件类别，Shopify fileCreate 只接受枚举类型
 // 注意：STEP/STP 在 Shopify 不被当作 MODEL_3D 支持，按 FILE 处理
@@ -61,12 +61,8 @@ function determineMimeType(fileType, fileName) {
  */
 
 export default async function handler(req, res) {
-  setCorsHeaders(req, res);
-
-  if (req.method === 'OPTIONS') {
-    res.status(200).end();
-    return;
-  }
+  // 统一处理 CORS：设置头、处理 OPTIONS、验证方法
+  if (handleCors(req, res, 'POST')) return;
 
   if (req.method === 'POST') {
     try {

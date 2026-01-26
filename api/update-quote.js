@@ -68,21 +68,11 @@ async function shopGql(query, variables) {
 // ─────────────────────────────────────────────────────────────
 // 主处理函数
 // ─────────────────────────────────────────────────────────────
-import { setCorsHeaders } from '../utils/cors-config.js';
+import { handleCors } from '../utils/cors-config.js';
 
 export default async function handler(req, res) {
-  // 设置CORS头 - 使用统一配置
-  setCorsHeaders(req, res, 'POST,OPTIONS');
-  
-  // 处理 OPTIONS 预检请求
-  if (req.method === 'OPTIONS') {
-    return res.status(204).end();
-  }
-  
-  // 只接受 POST 请求
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
+  // 统一处理 CORS：设置头、处理 OPTIONS、验证方法
+  if (handleCors(req, res, 'POST')) return;
   
   const { draftOrderId, amount, note, senderEmail, status } = req.body;
   

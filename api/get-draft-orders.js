@@ -1,4 +1,4 @@
-import { setCorsHeaders } from '../utils/cors-config.js';
+import { handleCors, getAdminEmails } from '../utils/cors-config.js';
 
 /**
  * ═══════════════════════════════════════════════════════════════
@@ -37,13 +37,8 @@ import { setCorsHeaders } from '../utils/cors-config.js';
  */
 
 export default async function handler(req, res) {
-  // 设置CORS头
-  setCorsHeaders(req, res);
-
-  if (req.method === 'OPTIONS') {
-    res.status(200).end();
-    return;
-  }
+  // 统一处理 CORS：设置头、处理 OPTIONS、验证方法
+  if (handleCors(req, res, 'GET')) return;
 
   // 只接受GET请求
   if (req.method !== 'GET') {
@@ -103,11 +98,8 @@ export default async function handler(req, res) {
     // 获取查询参数
     const { status, limit = 50, email, admin } = req.query;
 
-    // Admin allowlist (comma-separated; env: ADMIN_EMAIL_WHITELIST)
-    const adminWhitelist = (process.env.ADMIN_EMAIL_WHITELIST || 'jonathan.wang@sainstore.com,issac.yu@sainstore.com,kitto.chen@sainstore.com,cherry@sain3.com, keihen.luo@sain3.com,nancy.lin@sainstore.com')
-      .split(',')
-      .map(e => e.trim().toLowerCase())
-      .filter(Boolean);
+    // Admin allowlist - 使用统一配置
+    const adminWhitelist = getAdminEmails();
     const requesterEmail = (email || '').trim().toLowerCase();
     const isAdminRequest = ['1', 'true', 'yes'].includes((admin || '').toString().toLowerCase());
 

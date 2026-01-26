@@ -645,8 +645,9 @@
 </style>
 
 <script>
-  // 管理员白名单（如需新增，追加邮箱即可）
-  const ADMIN_EMAILS = ['jonathan.wang@sainstore.com', 'jonthan.wang@gmail.com', 'issac.yu@sainstore.com','kitto.chen@sainstore.com','cherry@sain3.com', 'keihen.luo@sain3.com','nancy.lin@sainstore.com'];
+  // 使用全局变量 window.ADMIN_EMAILS（在 theme.liquid 中已定义）
+  // 如需新增管理员，请修改 layout/theme.liquid 中的 window.ADMIN_EMAILS
+  const ADMIN_EMAILS = window.ADMIN_EMAILS || [];
   const customerEl = document.getElementById('customer-email');
   const customerEmail = (customerEl?.dataset.email || '').trim().toLowerCase();
   const customerTags = (customerEl?.dataset.tags || '').split(',').map(t => t.trim());

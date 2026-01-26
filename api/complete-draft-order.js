@@ -1,21 +1,8 @@
-import { setCorsHeaders } from '../utils/cors-config.js';
+import { handleCors } from '../utils/cors-config.js';
 
 export default async function handler(req, res) {
-  // 设置CORS头 - 使用统一配置
-  setCorsHeaders(req, res, 'GET,POST,OPTIONS');
-
-  // 处理OPTIONS预检请求
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
-
-  // 只允许POST请求
-  if (req.method !== 'POST') {
-    return res.status(405).json({ 
-      success: false, 
-      error: 'Method not allowed' 
-    });
-  }
+  // 统一处理 CORS：设置头、处理 OPTIONS、验证方法
+  if (handleCors(req, res, 'POST')) return;
 
   try {
     const { draftOrderId } = req.body || {};

@@ -1,4 +1,4 @@
-import { setCorsHeaders } from '../utils/cors-config.js';
+import { handleCors } from '../utils/cors-config.js';
 
 /**
  * ═══════════════════════════════════════════════════════════════
@@ -61,15 +61,8 @@ async function shopGql(query, variables) {
 }
 
 export default async function handler(req, res) {
-  setCorsHeaders(req, res);
-
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
-
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
+  // 统一处理 CORS：设置头、处理 OPTIONS、验证方法
+  if (handleCors(req, res, 'POST')) return;
 
   const { draftOrderId, customMessage } = req.body;
 

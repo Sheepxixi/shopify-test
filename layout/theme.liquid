@@ -6,6 +6,8 @@
   <head>
     <script>
       window.shopUrl = '{{ request.origin }}';
+      // 统一管理管理员邮箱列表 - 与后端 utils/cors-config.js 保持一致
+      window.ADMIN_EMAILS = ['jonathan.wang@sainstore.com', 'jonthan.wang@gmail.com', 'issac.yu@sainstore.com', 'kitto.chen@sainstore.com', 'cherry@sain3.com', 'keihen.luo@sain3.com', 'nancy.lin@sainstore.com'];
     </script>
     {%- render 'stylesheets' -%}
 
@@ -71,12 +73,13 @@
     {% endif %}
 
     {%- comment -%}
-      Hide the “Draft Order Management” entry for non-admin customers.
-      To adjust the allowlist, edit ADMIN_EMAILS below.
+      Hide the "Draft Order Management" entry for non-admin customers.
+      To adjust the allowlist, edit window.ADMIN_EMAILS in the <head> section above.
     {%- endcomment -%}
     <script>
       (() => {
-        const ADMIN_EMAILS = ['jonathan.wang@sainstore.com', 'jonthan.wang@gmail.com', 'issac.yu@sainstore.com','kitto.chen@sainstore.com','cherry@sain3.com', 'keihen.luo@sain3.com','nancy.lin@sainstore.com'];
+        // 使用全局变量 window.ADMIN_EMAILS（在 <head> 中已定义）
+        const ADMIN_EMAILS = window.ADMIN_EMAILS || [];
         const customerEmail = ({{ customer.email | json }} || '').toLowerCase();
         const isAdmin = ADMIN_EMAILS.includes(customerEmail);
 
