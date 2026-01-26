@@ -1,4 +1,4 @@
-import { handleCors, getAdminEmails } from '../utils/cors-config.js';
+import { handleCors, getAdminEmails } from './cors-config.js';
 
 /**
  * ═══════════════════════════════════════════════════════════════
@@ -39,11 +39,6 @@ import { handleCors, getAdminEmails } from '../utils/cors-config.js';
 export default async function handler(req, res) {
   // 统一处理 CORS：设置头、处理 OPTIONS、验证方法
   if (handleCors(req, res, 'GET')) return;
-
-  // 只接受GET请求
-  if (req.method !== 'GET') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
 
   try {
     // 检查环境变量 - 支持多种变量名

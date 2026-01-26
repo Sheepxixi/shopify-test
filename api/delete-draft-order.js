@@ -24,7 +24,7 @@
  * }
  */
 
-import { handleCors, getAdminEmails } from '../utils/cors-config.js';
+import { handleCors, getAdminEmails } from './cors-config.js';
 
 export default async function handler(req, res) {
   // 统一处理 CORS：设置头、处理 OPTIONS、验证方法

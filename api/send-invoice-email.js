@@ -1,4 +1,4 @@
-import { handleCors } from '../utils/cors-config.js';
+import { handleCors } from './cors-config.js';
 
 /**
  * ═══════════════════════════════════════════════════════════════

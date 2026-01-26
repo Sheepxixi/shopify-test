@@ -33,7 +33,7 @@
  * }
  */
 
-import { handleCors } from '../utils/cors-config.js';
+import { handleCors } from './cors-config.js';
 
 const API_BASE_URL = process.env.API_BASE_URL || 'https://shopify-v587.vercel.app';
 

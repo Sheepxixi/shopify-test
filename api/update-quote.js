@@ -68,7 +68,7 @@ async function shopGql(query, variables) {
 // ─────────────────────────────────────────────────────────────
 // 主处理函数
 // ─────────────────────────────────────────────────────────────
-import { handleCors } from '../utils/cors-config.js';
+import { handleCors } from './cors-config.js';
 
 export default async function handler(req, res) {
   // 统一处理 CORS：设置头、处理 OPTIONS、验证方法
