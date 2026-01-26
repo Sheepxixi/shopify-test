@@ -91,7 +91,7 @@ export default async function handler(req, res) {
     }
 
     // 获取查询参数
-    const { status, limit = 50, email, admin } = req.query;
+    const { status, limit = 200, email, admin } = req.query;
 
     // Admin allowlist - 使用统一配置
     const adminWhitelist = getAdminEmails();
