@@ -57,9 +57,10 @@ export function setCorsHeaders(req, res, allowedMethods = 'GET,POST,OPTIONS') {
   const allowedOrigins = [
     'https://sain-pdc-test.myshopify.com',
     'https://happy-july.myshopify.com',
+    'http://sainsmart.myshopify.com',
     'http://localhost:3000',
     'http://127.0.0.1:3000',
-    // 可以在这里添加更多允许的域名
+    // 可以在这里添加更多允许的域名,
   ];
 
   // Prefer Origin; fallback to Referer
