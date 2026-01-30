@@ -274,6 +274,9 @@ export default async function handler(req, res) {
       const fileId = `file_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
       // 步骤4：写入 uploaded_file Metaobject，便于后续下载
+      // 注意：已禁用，因为 'uploaded_file' metaobject 类型在 Shopify 中不存在
+      // 如果需要使用 metaobject，请先在 Shopify Admin 中创建对应的 metaobject definition
+      /*
       const metaobjectCreateMutation = `
         mutation createUploadedFile($metaobject: MetaobjectCreateInput!) {
           metaobjectCreate(metaobject: $metaobject) {
@@ -313,11 +316,11 @@ export default async function handler(req, res) {
         const metaErrors = metaJson?.data?.metaobjectCreate?.userErrors || [];
         if (metaJson.errors || metaErrors.length > 0) {
           console.warn('⚠️ Metaobject 写入失败（非致命）：', JSON.stringify(metaErrors || metaJson, null, 2));
-        } else {
         }
       } catch (metaErr) {
         console.warn('⚠️ Metaobject 写入异常（非致命）：', metaErr.message);
       }
+      */
 
       return res.status(200).json({
         success: true,

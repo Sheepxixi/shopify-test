@@ -247,17 +247,14 @@ export default async function handler(req, res) {
     });
   } catch (err) {
     console.error('DraftOrder creation failed:', err);
-    const quoteId = `Q${Date.now()}`;
-    const draftOrderId = `gid://shopify/DraftOrder/${Date.now()}`;
-    return res.status(200).json({
-      success: true,
-      message: 'RFQ submitted (fallback mode), but DraftOrder creation failed',
-      quoteId,
-      draftOrderId,
+    // 不要返回假的draftOrderId，这样前端就不会跳转到不存在的订单页面
+    return res.status(500).json({
+      success: false,
+      error: 'draft_order_creation_failed',
+      message: `Failed to create draft order: ${err?.message || err}`,
       customerEmail: req.body?.customerEmail || '',
       fileName: req.body?.fileName || 'unknown',
       timestamp: new Date().toISOString(),
-      error: String(err?.message || err),
     });
   }
 }

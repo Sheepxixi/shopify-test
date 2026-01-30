@@ -1927,7 +1927,14 @@
         }
 
         const result = await response.json();
-        console.log(`✅ Draft order created successfully (${fileData.file.name}):`, result);
+        console.log(`submit-quote-real response (${fileData.file.name}):`, result);
+
+        // 检查 API 返回的 success 字段
+        if (!result.success) {
+          const errorMsg = result.message || result.error || 'Draft order creation failed';
+          console.error(`❌ API returned success: false (${fileData.file.name}):`, errorMsg);
+          throw new Error(`Failed to create draft order (${fileData.file.name}): ${errorMsg}`);
+        }
 
         if (result.draftOrderId) {
           return result.draftOrderId;
