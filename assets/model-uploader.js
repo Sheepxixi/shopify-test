@@ -707,10 +707,20 @@
       }
 
       showLoading(false);
+      
+      // 重置文件输入框，允许重新上传同一个文件
+      if (fileInput) {
+        fileInput.value = '';
+      }
     } catch (error) {
       console.error('Error processing files:', error);
       showError(error.message);
       showLoading(false);
+      
+      // 即使出错也要重置文件输入框
+      if (fileInput) {
+        fileInput.value = '';
+      }
     }
   }
 
